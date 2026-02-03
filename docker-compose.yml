@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  polymarket-bot-a:
+    image: polymarket-copy-trading:0.0.1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: POLYMARKET_BOT_A
+    ports:
+      - 4000:8888
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  polymarket-bot-b:
+    image: polymarket-copy-trading:0.0.1
+    container_name: POLYMARKET_BOT_B
+    ports:
+      - 4001:8888
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  polymarket-bot-c:
+    image: polymarket-copy-trading:0.0.1
+    container_name: POLYMARKET_BOT_C
+    ports:
+      - 4002:8888
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
