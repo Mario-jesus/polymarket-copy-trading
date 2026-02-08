@@ -13,7 +13,7 @@ from py_clob_client.exceptions import PolyApiException  # type: ignore[import-un
 
 from polymarket_copy_trading.events.orders import OrderPlacedEvent
 from polymarket_copy_trading.utils import mask_address
-from polymarket_copy_trading.services.order_execution.model import (
+from polymarket_copy_trading.services.order_execution.dto import (
     OrderExecutionResult,
     OrderResponse,
 )
