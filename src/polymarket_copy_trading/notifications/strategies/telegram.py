@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Optional, TYPE_CHECKING
-
 import structlog
+from typing import Any, Callable, Optional, TYPE_CHECKING
+
 from telegram import Bot
 from telegram.error import (
     BadRequest,
@@ -34,9 +34,12 @@ class TelegramNotifier(BaseNotificationStrategy):
         self,
         settings: "Settings",
         styler: "NotificationStyler",
+        *,
+        get_logger: Callable[[str], Any] = structlog.get_logger,
+        logger_name: Optional[str] = None,
     ) -> None:
         super().__init__(settings)
-        self._logger = structlog.get_logger(self.__class__.__name__)
+        self._logger = get_logger(logger_name or self.__class__.__name__)
         self._styler: "NotificationStyler" = styler
 
         cfg = self.settings.telegram

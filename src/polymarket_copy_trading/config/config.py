@@ -18,10 +18,13 @@ class AppSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    app_name: str = "polymarket-copy-trading"
-    service_name: Optional[str] = None
-    service_version: Optional[str] = None
-    environment: Literal["development", "test", "production"] = "development"
+    app_name: str = Field(default="polymarket-copy-trading", description="Application name.")
+    service_name: Optional[str] = Field(default=None, description="Service name.")
+    service_version: Optional[str] = Field(default=None, description="Service version.")
+    environment: Literal["development", "test", "production"] = Field(
+        default="development",
+        description="Environment (development, test, production).",
+    )
 
 
 class LoggingSettings(BaseSettings):
@@ -30,28 +33,40 @@ class LoggingSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     # Per-target levels (only the 5 standard levels)
-    console_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    file_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    logfire_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    console_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO", description="Console log level."
+    )
+    file_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO", description="File log level."
+    )
+    logfire_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO", description="Logfire log level."
+    )
 
     # Local outputs
-    log_to_console: bool = True
-    log_to_file: bool = False
-    log_file_path: str = "logs/copy_trading.log"
+    log_to_console: bool = Field(default=True, description="Whether to log to console.")
+    log_to_file: bool = Field(default=False, description="Whether to log to file.")
+    log_file_path: str = Field(
+        default="logs/copy_trading.log",
+        description="Path to log file.",
+    )
     # TimedRotatingFileHandler: when to rotate (S/M/H/D/W0–W6/midnight), interval, backups to keep
     log_file_when: Literal[
         "S", "M", "H", "D", "W0", "W1", "W2", "W3", "W4", "W5", "W6", "midnight"
-    ] = "midnight"
-    log_file_interval: int = 1
-    log_file_backup_count: int = 30
-    log_file_utc: bool = True
+    ] = Field(default="midnight", description="Log rotation interval (e.g. midnight, H, D).")
+    log_file_interval: int = Field(default=1, description="Number of intervals between rotations.")
+    log_file_backup_count: int = Field(default=30, description="Number of backup log files to keep.")
+    log_file_utc: bool = Field(default=True, description="Use UTC for log file timestamps.")
 
     # Main output format: JSONRenderer if True, ConsoleRenderer if False
-    json_format: bool = False
+    json_format: bool = Field(
+        default=False,
+        description="Use JSON format for log output (else ConsoleRenderer).",
+    )
 
     # Logfire integration via structlog
-    logfire_enabled: bool = False
-    logfire_token: Optional[str] = None
+    logfire_enabled: bool = Field(default=False, description="Enable Logfire integration.")
+    logfire_token: Optional[str] = Field(default=None, description="Logfire token.")
 
 
 class ApiSettings(BaseSettings):
@@ -92,18 +107,12 @@ class PolymarketClobSettings(BaseSettings):
     )
     chain_id: int = Field(default=137, description="Chain ID (e.g. 137 for Polygon).")
     signature_type: int = Field(default=0, description="Signature type for CLOB.")
-    private_key: Optional[str] = Field(default=None, description="Wallet private key.")
-    api_key: Optional[str] = Field(default=None, description="Polymarket API key.")
-    api_secret: Optional[str] = Field(
-        default=None,
-        description="Polymarket API secret (env: APY_SECRET or API_SECRET).",
-        validation_alias="apy_secret",
-    )
-    api_passphrase: Optional[str] = Field(default=None, description="Polymarket API passphrase.")
-    funder: Optional[str] = Field(
-        default=None,
-        description="Proxy wallet address (Wallet Address in Polymarket UI).",
-    )
+    private_key: str = Field(..., description="Wallet private key.")
+    api_key: str = Field(..., description="Polymarket API key.")
+    api_secret: str = Field(..., description="Polymarket API secret.")
+    api_passphrase: str = Field(..., description="Polymarket API passphrase.")
+    funder: str = Field(..., description="Proxy wallet address (Wallet Address in Polymarket UI).")
+    signer: Optional[str] = Field(default=None, description="Signer address (EOA that signs orders).")
 
 
 class TelegramNotificationSettings(BaseSettings):
@@ -111,7 +120,7 @@ class TelegramNotificationSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    enabled: bool = False
+    enabled: bool = Field(default=False, description="Enable Telegram notifications.")
     api_key: Optional[str] = Field(default=None, description="Telegram bot API key.")
     chat_id: Optional[str] = Field(default=None, description="Telegram chat ID.")
     messages_per_minute: int = Field(default=30, ge=1, le=120)
@@ -129,7 +138,20 @@ class ConsoleNotificationSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    enabled: bool = True
+    enabled: bool = Field(default=True, description="Enable console notifications.")
+
+
+class OrderExecutionSettings(BaseSettings):
+    """Order execution configuration (from env ORDER_EXECUTION__*)."""
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    minimum_amount: float = Field(
+        default=1.0,
+        ge=0.01,
+        le=1_000_000.0,
+        description="Minimum USDC amount for place_buy_minimum (default $1).",
+    )
 
 
 class TrackingSettings(BaseSettings):
@@ -191,13 +213,38 @@ class Settings(BaseSettings):
         frozen=True,
     )
 
-    app: AppSettings = Field(default_factory=AppSettings)
-    logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    api: ApiSettings = Field(default_factory=ApiSettings)
-    tracking: TrackingSettings = Field(default_factory=TrackingSettings)
-    polymarket: PolymarketClobSettings = Field(default_factory=PolymarketClobSettings)
-    telegram: TelegramNotificationSettings = Field(default_factory=TelegramNotificationSettings)
-    console: ConsoleNotificationSettings = Field(default_factory=ConsoleNotificationSettings)
+    app: AppSettings = Field(
+        default_factory=AppSettings,
+        description="General application configuration.",
+    )
+    logging: LoggingSettings = Field(
+        default_factory=LoggingSettings,
+        description="Structured logging configuration.",
+    )
+    api: ApiSettings = Field(
+        default_factory=ApiSettings,
+        description="Polymarket Data API and Gamma API configuration.",
+    )
+    tracking: TrackingSettings = Field(
+        default_factory=TrackingSettings,
+        description="Trade tracking (polling) configuration.",
+    )
+    polymarket: PolymarketClobSettings = Field(
+        ...,
+        description="Polymarket CLOB/trading credentials and wallet.",
+    )
+    telegram: TelegramNotificationSettings = Field(
+        default_factory=TelegramNotificationSettings,
+        description="Telegram notification configuration.",
+    )
+    console: ConsoleNotificationSettings = Field(
+        default_factory=ConsoleNotificationSettings,
+        description="Console notification configuration.",
+    )
+    order_execution: OrderExecutionSettings = Field(
+        default_factory=OrderExecutionSettings,
+        description="Order execution configuration (e.g. minimum_amount for place_buy_minimum).",
+    )
 
     @classmethod
     def from_env(cls, **overrides: Any) -> Settings:
@@ -225,4 +272,4 @@ def get_settings() -> Settings:
         timeout = settings.api.timeout_seconds
         console_level = settings.logging.console_level
     """
-    return Settings()
+    return Settings()  # type: ignore[call-arg]

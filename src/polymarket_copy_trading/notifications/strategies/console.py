@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from polymarket_copy_trading.notifications.types import NotificationMessage
 from polymarket_copy_trading.notifications.strategies.base import BaseNotificationStrategy
-from polymarket_copy_trading.config.config import Settings
+from polymarket_copy_trading.config import Settings
 
 if TYPE_CHECKING:  # pragma: no cover
     from polymarket_copy_trading.notifications.types import NotificationStyler

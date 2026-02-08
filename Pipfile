@@ -17,6 +17,7 @@ logfire = "*"
 cachetools = "*"
 dependency-injector = "*"
 python-telegram-bot = "*"
+bubus = "*"
 
 [dev-packages]
 

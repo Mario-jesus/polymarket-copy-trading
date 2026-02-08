@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import asyncio
 import structlog
-from typing import Any, Optional
 from collections.abc import Awaitable, Callable
+from typing import Any, Optional
 
 from polymarket_copy_trading.clients.data_api import DataApiClient
 from polymarket_copy_trading.clients.gamma_cache import GammaCache
@@ -34,6 +34,9 @@ class TradeTracker:
         gamma_cache: GammaCache,
         settings: Settings,
         notification_service: Optional[NotificationService] = None,
+        *,
+        get_logger: Callable[[str], Any] = structlog.get_logger,
+        logger_name: Optional[str] = None,
     ) -> None:
         """Initialize the tracker.
 
@@ -41,12 +44,15 @@ class TradeTracker:
             data_api: Data API client (injected).
             gamma_cache: Gamma cache for condition_id -> market info (injected).
             settings: Application settings (uses settings.tracking).
+            notification_service: Optional notification service (injected).
+            get_logger: Logger factory (injected) with default of structlog.get_logger.
+            logger_name: Optional logger name (defaults to class name).
         """
         self._data_api = data_api
         self._gamma_cache = gamma_cache
         self._settings = settings
         self._notification_service = notification_service
-        self._logger = structlog.get_logger(self.__class__.__name__)
+        self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def track(
         self,

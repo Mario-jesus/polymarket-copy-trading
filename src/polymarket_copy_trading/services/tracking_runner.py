@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import asyncio
 import structlog
+from collections.abc import Callable
+from typing import Any, Optional
 
 from polymarket_copy_trading.config import Settings
 from polymarket_copy_trading.services.tracking import TradeTracker
@@ -13,16 +15,25 @@ from polymarket_copy_trading.services.tracking import TradeTracker
 class TrackingRunner:
     """Runs tracker.track() for each wallet in parallel until shutdown_event or CancelledError."""
 
-    def __init__(self, tracker: TradeTracker, settings: Settings) -> None:
+    def __init__(
+        self,
+        tracker: TradeTracker,
+        settings: Settings,
+        *,
+        get_logger: Callable[[str], Any] = structlog.get_logger,
+        logger_name: Optional[str] = None,
+    ) -> None:
         """Initialize the runner.
 
         Args:
             tracker: Injected TradeTracker.
             settings: Application settings (uses settings.tracking for poll_seconds, limit, etc.).
+            get_logger: Logger factory (injected) with default of structlog.get_logger.
+            logger_name: Optional logger name (defaults to class name).
         """
         self._tracker = tracker
         self._settings = settings
-        self._logger = structlog.get_logger(self.__class__.__name__)
+        self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def run(
         self,

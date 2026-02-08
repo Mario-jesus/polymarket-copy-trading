@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import structlog
-from typing import TYPE_CHECKING, Any, List, Dict, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, cast
 from structlog.contextvars import bound_contextvars
 
 from polymarket_copy_trading.config import Settings
@@ -16,17 +16,26 @@ if TYPE_CHECKING:
 class GammaApiClient:
     """Client for Polymarket Gamma API (e.g. /markets by condition_ids)."""
 
-    def __init__(self, http_client: "AsyncHttpClient", settings: Settings) -> None:
+    def __init__(
+        self,
+        http_client: "AsyncHttpClient",
+        settings: Settings,
+        *,
+        get_logger: Callable[[str], Any] = structlog.get_logger,
+        logger_name: Optional[str] = None,
+    ) -> None:
         """Initialize the client.
 
         Args:
             http_client: Async HTTP client (e.g. AsyncHttpClient).
             settings: Application settings (uses settings.api.gamma_host,
                 settings.tracking.gamma_batch_size).
+            get_logger: Logger factory (injected) with default of structlog.get_logger.
+            logger_name: Optional logger name (defaults to class name).
         """
         self._http = http_client
         self._settings = settings
-        self._logger = structlog.get_logger(self.__class__.__name__)
+        self._logger = get_logger(logger_name or self.__class__.__name__)
 
     def _base_url(self) -> str:
         return self._settings.api.gamma_host.rstrip("/")

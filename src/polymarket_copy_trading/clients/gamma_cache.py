@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import structlog
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 from cachetools import LRUCache
 from structlog.contextvars import bound_contextvars
 
@@ -22,16 +22,20 @@ class GammaCache:
         gamma_client: GammaApiClient,
         *,
         maxsize: int = 2048,
+        get_logger: Callable[[str], Any] = structlog.get_logger,
+        logger_name: Optional[str] = None,
     ) -> None:
         """Initialize the cache.
 
         Args:
             gamma_client: Gamma API client (injected).
             maxsize: Maximum number of condition_ids to keep (LRU eviction).
+            get_logger: Logger factory (injected) with default of structlog.get_logger.
+            logger_name: Optional logger name (defaults to class name).
         """
         self._client = gamma_client
         self._cache: LRUCache[str, Dict[str, Any]] = LRUCache(maxsize=max(1, maxsize))
-        self._logger = structlog.get_logger(self.__class__.__name__)
+        self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def resolve(self, condition_ids: List[str]) -> None:
         """Fetch and cache market info for condition_ids that are not yet cached.

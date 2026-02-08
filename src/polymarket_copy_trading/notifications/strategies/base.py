@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Estrategia base de notificación."""
+"""Base notification strategy."""
 
 from __future__ import annotations
 
@@ -13,31 +13,31 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BaseNotificationStrategy(ABC):
-    """Clase base abstracta para estrategias de notificación."""
+    """Abstract base class for notification strategies."""
 
     def __init__(self, settings: "Settings"):
         """
-        Inicializa la estrategia base
+        Initialize the base strategy.
 
         Args:
-            settings: Configuración global (Settings).
+            settings: Global configuration (Settings).
         """
         self.settings = settings
 
     @property
     @abstractmethod
     def is_running(self) -> bool:
-        """Indica si la estrategia está corriendo"""
+        """Indicates whether the strategy is running."""
         pass
 
     @abstractmethod
     async def initialize(self) -> None:
-        """Inicializa la estrategia"""
+        """Initializes the strategy."""
         pass
 
     @abstractmethod
     async def shutdown(self) -> None:
-        """Cierra la estrategia"""
+        """Shuts down the strategy."""
         pass
 
     @abstractmethod
@@ -46,9 +46,9 @@ class BaseNotificationStrategy(ABC):
         message: NotificationMessage,
     ) -> None:
         """
-        Envía una notificación
+        Sends a notification.
 
         Args:
-            message: Mensaje a enviar (NotificationMessage)
+            message: Notification message to send (NotificationMessage).
         """
         pass

@@ -8,7 +8,7 @@ import random
 import uuid
 import aiohttp
 import structlog
-from typing import Any, Optional, Dict
+from typing import Any, Callable, Dict, Optional
 from structlog.contextvars import bound_contextvars
 
 from polymarket_copy_trading.config import Settings
@@ -28,6 +28,8 @@ class AsyncHttpClient:
         settings: Settings,
         *,
         session: Optional[aiohttp.ClientSession] = None,
+        get_logger: Callable[[str], Any] = structlog.get_logger,
+        logger_name: Optional[str] = None,
     ) -> None:
         """Initialize the client.
 
@@ -35,11 +37,13 @@ class AsyncHttpClient:
             settings: Configuration (timeout, max_retries, etc.).
             session: Optional shared aiohttp session. If None, the client
                 creates and owns a session (call aclose() when done).
+            get_logger: Logger factory (injected) with default of structlog.get_logger.
+            logger_name: Optional logger name (defaults to class name).
         """
         self._settings = settings
         self._session = session
         self._owns_session = session is None
-        self._logger = structlog.get_logger(self.__class__.__name__)
+        self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:

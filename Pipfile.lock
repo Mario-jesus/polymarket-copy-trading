@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "601fbccbf83a29bb542b9dc809e45d065d815df3dfff20c28b4de28c0418cdc2"
+            "sha256": "3a62adca9ec8f03bfb994f1b0ddb08a2be1916a534b98ad1e0f5d874b4354454"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,6 +16,14 @@
         ]
     },
     "default": {
+        "aiofiles": {
+            "hashes": [
+                "sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2",
+                "sha256:abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695"
+            ],
+            "markers": "python_version >= '3.9'",
+            "version": "==25.1.0"
+        },
         "aiohappyeyeballs": {
             "hashes": [
                 "sha256:c3f9d0113123803ccadfdf3f0faa505bc78e6a72d1cc4806cbd719826e943558",
@@ -382,6 +390,15 @@
             ],
             "markers": "python_version >= '3.10'",
             "version": "==6.3.0"
+        },
+        "bubus": {
+            "hashes": [
+                "sha256:1a5456f0a576e86613a7bd66e819891b677778320b6e291094e339b0d9df2e0d",
+                "sha256:254ae37cd9299941f5e9d6afb11f8e3ce069f83e5b9476f88c6b2e32912f237d"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.11' and python_version < '4.0'",
+            "version": "==1.5.6"
         },
         "cachetools": {
             "hashes": [
@@ -2124,6 +2141,14 @@
             "markers": "python_full_version >= '3.9.10'",
             "version": "==0.0.1"
         },
+        "portalocker": {
+            "hashes": [
+                "sha256:1f3002956a54a8c3730586c5c77bf18fae4149e07eaf1c29fc3faf4d5a3f89ac",
+                "sha256:3cdc5f565312224bc570c49337bd21428bba0ef363bbcf58b9ef4a9f11779968"
+            ],
+            "markers": "python_version >= '3.9'",
+            "version": "==3.2.0"
+        },
         "prometheus-client": {
             "hashes": [
                 "sha256:150db128af71a5c2482b36e588fc8a6b95e498750da4b17065947c16070f4055",
@@ -3227,6 +3252,14 @@
             ],
             "markers": "python_version >= '3.9'",
             "version": "==2.6.3"
+        },
+        "uuid7": {
+            "hashes": [
+                "sha256:5e259bb63c8cb4aded5927ff41b444a80d0c7124e8a0ced7cf44efa1f5cccf61",
+                "sha256:8c57aa32ee7456d3cc68c95c4530bc571646defac01895cfc73545449894a63c"
+            ],
+            "markers": "python_version >= '3.7'",
+            "version": "==0.1.0"
         },
         "wcwidth": {
             "hashes": [
