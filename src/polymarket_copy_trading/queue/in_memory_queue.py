@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 
-from polymarket_copy_trading.queue.base import AsyncQueue
+from polymarket_copy_trading.queue.base import IAsyncQueue
 from polymarket_copy_trading.exceptions import (
     QueueEmpty,
     QueueFull,
@@ -13,7 +13,7 @@ from polymarket_copy_trading.exceptions import (
 )
 
 
-class InMemoryQueue[T](AsyncQueue[T]):
+class InMemoryQueue[T](IAsyncQueue[T]):
     """In-memory implementation of AsyncQueue using asyncio.Queue."""
 
     def __init__(self, maxsize: int = 0) -> None:

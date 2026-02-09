@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class QueueMessage[T]:
     """Base message for all queue messages."""
 

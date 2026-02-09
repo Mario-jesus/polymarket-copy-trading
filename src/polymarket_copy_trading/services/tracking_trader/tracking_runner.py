@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any, Optional
 
 from polymarket_copy_trading.config import Settings
-from polymarket_copy_trading.services.tracking import TradeTracker
+from polymarket_copy_trading.services.tracking_trader import TradeTracker
 
 
 class TrackingRunner:
@@ -52,7 +52,6 @@ class TrackingRunner:
             tracking_wallets_count=len(wallets),
             tracking_poll_seconds=tr.poll_seconds,
             tracking_limit=tr.trades_limit,
-            tracking_gamma_lookup=tr.enable_gamma_lookup,
         )
         track_tasks = [
             asyncio.create_task(
@@ -60,7 +59,6 @@ class TrackingRunner:
                     wallet,
                     poll_seconds=tr.poll_seconds,
                     limit=tr.trades_limit,
-                    enable_gamma_lookup=tr.enable_gamma_lookup,
                     emit_initial=False,
                 ),
             )

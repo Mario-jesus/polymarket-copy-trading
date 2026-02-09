@@ -2,7 +2,8 @@
 """
 Entry point for the copy-trading application.
 
-Orchestrates: logging, settings, container, tracking runner, shutdown (SIGINT or CancelledError).
+Orchestrates: logging, settings, container, trade consumer, tracking runner, shutdown (SIGINT or CancelledError).
+Trades flow: tracker -> queue -> consumer -> TradeProcessorService (log + optional notifications).
 
 Run with: python -m polymarket_copy_trading.main
 
@@ -55,6 +56,8 @@ async def run() -> None:
 
     container = Container()
     runner = container.tracking_runner()
+    consumer = container.trade_consumer()
+    trade_queue = container.trade_queue()
     notification_service = container.notification_service()
     await notification_service.initialize()
     shutdown_event = asyncio.Event()
@@ -72,6 +75,7 @@ async def run() -> None:
         )
     )
 
+    await consumer.start()
     try:
         try:
             await runner.run(target_wallets, shutdown_event)
@@ -81,6 +85,10 @@ async def run() -> None:
 
         await _do_shutdown(logger)
     finally:
+        trade_queue.shutdown()
+        await trade_queue.join()
+        await consumer.stop()
+
         notification_service.notify(
             NotificationMessage(
                 event_type="system_stopped",

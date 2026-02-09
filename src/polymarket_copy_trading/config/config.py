@@ -177,15 +177,11 @@ class TrackingSettings(BaseSettings):
         le=500,
         description="Number of trades to fetch per poll.",
     )
-    gamma_batch_size: int = Field(
-        default=50,
+    queue_size: int = Field(
+        default=1000,
         ge=1,
-        le=200,
-        description="Batch size for Gamma API condition_id lookups.",
-    )
-    enable_gamma_lookup: bool = Field(
-        default=True,
-        description="Whether to resolve condition_id to market_id/title via Gamma API.",
+        le=5000,
+        description="Max size of the trade queue (tracker -> consumer).",
     )
 
     @computed_field

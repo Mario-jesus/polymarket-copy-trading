@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 
-class AsyncQueue[T](ABC):
+class IAsyncQueue[T](ABC):
     """Abstract interface for an async queue: put/get with optional non-blocking variants.
 
     Implementations must provide blocking and non-blocking put/get, task_done/join
