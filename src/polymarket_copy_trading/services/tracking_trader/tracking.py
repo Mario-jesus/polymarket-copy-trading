@@ -52,7 +52,6 @@ class TradeTracker:
         *,
         poll_seconds: Optional[float] = None,
         limit: Optional[int] = None,
-        emit_initial: bool = False,
     ) -> None:
         """Poll for new trades and push them to the queue.
 
@@ -63,7 +62,6 @@ class TradeTracker:
             wallet: 0x wallet address (42 chars).
             poll_seconds: Polling interval; default from settings.tracking.poll_seconds.
             limit: Trades per poll; default from settings.tracking.trades_limit.
-            emit_initial: If True, push all baseline trades at start (oldest first).
         """
         if not is_hex_address(wallet):
             raise ValueError("wallet must be a valid 0x wallet address (42 chars)")
@@ -82,15 +80,6 @@ class TradeTracker:
         latest = await self._data_api.get_trades(wallet, limit=limit, offset=0)
         for t in latest:
             seen_keys.add(trade_key(t))
-
-        if emit_initial:
-            for t in reversed(latest):
-                await self._queue.put(
-                    item=QueueMessage[DataApiTradeDTO].create(
-                        payload=DataApiTradeDTO.from_response(t),
-                        metadata={"wallet": wallet, "is_snapshot": True},
-                    )
-                )
 
         wallet_masked = mask_address(wallet)
         self._logger.debug(
@@ -128,7 +117,7 @@ class TradeTracker:
                     await self._queue.put(
                         item=QueueMessage[DataApiTradeDTO].create(
                             payload=trade,
-                            metadata={"wallet": wallet, "is_snapshot": False},
+                            metadata={"wallet": wallet},
                         )
                     )
                 if len(seen_keys) > SEEN_KEYS_MAX:

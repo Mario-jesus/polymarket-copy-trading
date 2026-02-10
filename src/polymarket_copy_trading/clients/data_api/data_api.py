@@ -4,14 +4,15 @@
 from __future__ import annotations
 
 import structlog
-from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, cast
 from structlog.contextvars import bound_contextvars
 
+from polymarket_copy_trading.clients.data_api.schema import PositionSchema, TradeSchema
 from polymarket_copy_trading.config import Settings
 from polymarket_copy_trading.utils.validation import mask_address
 
 if TYPE_CHECKING:
-    from .http import AsyncHttpClient
+    from polymarket_copy_trading.clients.http import AsyncHttpClient
 
 PositionSortBy = Literal[
     "CURRENT", "INITIAL", "TOKENS", "CASHPNL", "PERCENTPNL",
@@ -52,7 +53,7 @@ class DataApiClient:
         *,
         limit: int = 20,
         offset: int = 0,
-    ) -> list[dict[str, Any]]:
+    ) -> list[TradeSchema]:
         """Fetch latest trades for a user (most recent first).
 
         Args:
@@ -61,7 +62,7 @@ class DataApiClient:
             offset: Pagination offset.
 
         Returns:
-            List of trade dicts from the Data API.
+            List of trade items from the Data API (Trade schema).
         """
         user_masked = mask_address(user)
         with bound_contextvars(
@@ -82,10 +83,10 @@ class DataApiClient:
                     data_api_response_type=type(data).__name__,
                 )
                 return []
-            result: list[dict[str, Any]] = []
+            result: list[TradeSchema] = []
             for x in cast(list[Any], data):
                 if isinstance(x, dict):
-                    result.append(cast(dict[str, Any], x))
+                    result.append(cast(TradeSchema, x))
             return result
 
     async def get_positions(
@@ -102,7 +103,7 @@ class DataApiClient:
         sort_by: PositionSortBy = "TOKENS",
         sort_direction: PositionSortDirection = "DESC",
         title: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[PositionSchema]:
         """Get current positions for a user.
 
         API: GET /positions. Returns positions filtered by user and optional filters.
@@ -123,7 +124,7 @@ class DataApiClient:
             title: Filter by title substring (max 100 chars).
 
         Returns:
-            List of position dicts (Position schema).
+            List of position items from the Data API (Position schema).
         """
         if market is not None and event_id is not None:
             self._logger.warning(
@@ -163,8 +164,8 @@ class DataApiClient:
                     data_api_response_type=type(data).__name__,
                 )
                 return []
-            result: list[dict[str, Any]] = []
+            result: list[PositionSchema] = []
             for x in cast(list[Any], data):
                 if isinstance(x, dict):
-                    result.append(cast(dict[str, Any], x))
+                    result.append(cast(PositionSchema, x))
             return result
