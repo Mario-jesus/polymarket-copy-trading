@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""In-memory tracking repository (keyed by wallet, condition_id, outcome)."""
+"""In-memory tracking repository (keyed by tracked_wallet, asset)."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from polymarket_copy_trading.persistence.repositories.interfaces.tracking_reposi
 )
 
 
-def _key(wallet: str, condition_id: str, outcome: str) -> tuple[str, str, str]:
-    return (wallet, condition_id, outcome)
+def _key(wallet: str, asset: str) -> tuple[str, str]:
+    return (wallet.strip(), asset.strip())
 
 
 class InMemoryTrackingRepository(ITrackingRepository):
@@ -20,40 +20,37 @@ class InMemoryTrackingRepository(ITrackingRepository):
 
     def __init__(self) -> None:
         """Initialize an empty in-memory store."""
-        self._store: dict[tuple[str, str, str], TrackingLedger] = {}
+        self._store: dict[tuple[str, str], TrackingLedger] = {}
 
     def get(
         self,
         tracked_wallet: str,
-        condition_id: str,
-        outcome: str,
+        asset: str,
     ) -> Optional[TrackingLedger]:
-        """Return the ledger for (wallet, condition_id, outcome), or None if missing."""
-        return self._store.get(_key(tracked_wallet, condition_id, outcome))
+        """Return the ledger for (wallet, asset), or None if missing."""
+        return self._store.get(_key(tracked_wallet, asset))
 
     def get_or_create(
         self,
         tracked_wallet: str,
-        condition_id: str,
-        outcome: str,
+        asset: str,
     ) -> TrackingLedger:
         """Return existing ledger or create one with snapshot_t0=0 and post_tracking=0."""
-        k = _key(tracked_wallet, condition_id, outcome)
+        k = _key(tracked_wallet, asset)
         if k in self._store:
             return self._store[k]
         ledger = TrackingLedger.create(
             tracked_wallet=tracked_wallet,
-            condition_id=condition_id,
-            outcome=outcome,
+            asset=asset,
         )
         self._store[k] = ledger
         return ledger
 
     def save(self, ledger: TrackingLedger) -> None:
-        """Upsert a ledger (by tracked_wallet, condition_id, outcome)."""
-        k = _key(ledger.tracked_wallet, ledger.condition_id, ledger.outcome)
+        """Upsert a ledger (by tracked_wallet, asset)."""
+        k = _key(ledger.tracked_wallet, ledger.asset)
         self._store[k] = ledger
 
     def list_by_wallet(self, tracked_wallet: str) -> list[TrackingLedger]:
         """Return all ledgers for the given tracked wallet."""
-        return [ledger for (w, _, _), ledger in self._store.items() if w == tracked_wallet]
+        return [ledger for (w, _), ledger in self._store.items() if w == tracked_wallet.strip()]

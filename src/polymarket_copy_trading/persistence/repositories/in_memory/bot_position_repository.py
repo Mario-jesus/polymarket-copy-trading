@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
@@ -12,9 +14,9 @@ from polymarket_copy_trading.persistence.repositories.interfaces.bot_position_re
 )
 
 
-def _by_step_then_opened(position: BotPosition) -> tuple[int, str]:
-    """Sort key: entry_step_level, then opened_at iso for stable order."""
-    return (position.entry_step_level, position.opened_at.isoformat())
+def _by_opened_at(position: BotPosition) -> str:
+    """Sort key: opened_at (FIFO = oldest first)."""
+    return position.opened_at.isoformat()
 
 
 class InMemoryBotPositionRepository(IBotPositionRepository):
@@ -33,22 +35,41 @@ class InMemoryBotPositionRepository(IBotPositionRepository):
         self._store[position.id] = position
 
     def list_by_wallet(self, tracked_wallet: str) -> list[BotPosition]:
-        """Return all positions for the given tracked wallet (any status)."""
+        """Return all positions for the given tracked wallet (any status), ordered by opened_at (FIFO)."""
         return sorted(
             (p for p in self._store.values() if p.tracked_wallet == tracked_wallet),
-            key=_by_step_then_opened,
+            key=_by_opened_at,
         )
 
     def list_open_by_wallet(self, tracked_wallet: str) -> list[BotPosition]:
-        """Return open positions for the given tracked wallet, ordered by entry_step_level."""
+        """Return open positions for the given tracked wallet, ordered by opened_at (FIFO)."""
         return sorted(
             (p for p in self._store.values() if p.tracked_wallet == tracked_wallet and p.is_open),
-            key=_by_step_then_opened,
+            key=_by_opened_at,
         )
 
     def list_open_by_ledger(self, ledger_id: UUID) -> list[BotPosition]:
-        """Return open positions for the given ledger (same market-outcome), ordered by entry_step_level."""
+        """Return open positions for the given ledger, ordered by opened_at (FIFO, oldest first)."""
         return sorted(
             (p for p in self._store.values() if p.ledger_id == ledger_id and p.is_open),
-            key=_by_step_then_opened,
+            key=_by_opened_at,
         )
+
+    def mark_closed(
+        self,
+        position_id: UUID,
+        closed_at: Optional[datetime] = None,
+        close_proceeds_usdc: Optional[Decimal] = None,
+        close_fees: Optional[Decimal] = None,
+    ) -> Optional[BotPosition]:
+        """Load position by id, set status CLOSED with optional closed_at and PnL fields, save and return updated."""
+        position = self.get(position_id)
+        if position is None or not position.is_open:
+            return position
+        updated = position.with_closed(
+            closed_at=closed_at,
+            close_proceeds_usdc=close_proceeds_usdc,
+            close_fees=close_fees,
+        )
+        self.save(updated)
+        return updated

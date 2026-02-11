@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
@@ -31,19 +32,21 @@ class IBotPositionRepository(ABC):
 
     @abstractmethod
     def list_open_by_wallet(self, tracked_wallet: str) -> list[BotPosition]:
-        """Return open positions for the given tracked wallet, ordered by entry_step_level."""
+        """Return open positions for the given tracked wallet, ordered by opened_at (FIFO)."""
         ...
 
     @abstractmethod
     def list_open_by_ledger(self, ledger_id: UUID) -> list[BotPosition]:
-        """Return open positions for the given ledger (same market-outcome), ordered by entry_step_level."""
+        """Return open positions for the given ledger, ordered by opened_at (FIFO, oldest first)."""
         ...
 
-    def mark_closed(self, position_id: UUID, closed_at: datetime | None = None) -> Optional[BotPosition]:
-        """Load position by id, set status CLOSED and closed_at, save and return updated. None if not found."""
-        position = self.get(position_id)
-        if position is None or not position.is_open:
-            return position
-        updated = position.with_closed(closed_at)
-        self.save(updated)
-        return updated
+    @abstractmethod
+    def mark_closed(
+        self,
+        position_id: UUID,
+        closed_at: datetime | None = None,
+        close_proceeds_usdc: Decimal | None = None,
+        close_fees: Decimal | None = None,
+    ) -> Optional[BotPosition]:
+        """Load position by id, set status CLOSED and closed_at (and optional PnL fields), save and return updated. None if not found."""
+        ...

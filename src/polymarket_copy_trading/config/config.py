@@ -154,6 +154,47 @@ class OrderExecutionSettings(BaseSettings):
     )
 
 
+class StrategySettings(BaseSettings):
+    """Copy-trading strategy: sizing, open/close thresholds (from env STRATEGY__*)."""
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    fixed_position_amount_usdc: float = Field(
+        default=10.0,
+        ge=0.01,
+        description="Amount in USDC to invest per bot position (each open uses this size). Env: STRATEGY__FIXED_POSITION_AMOUNT_USDC.",
+    )
+    max_positions_per_ledger: int = Field(
+        default=5,
+        ge=1,
+        le=100,
+        description="Maximum open BotPositions per ledger (per asset). Env: STRATEGY__MAX_POSITIONS_PER_LEDGER.",
+    )
+    max_active_ledgers: int = Field(
+        default=10,
+        ge=1,
+        le=500,
+        description="Maximum number of assets (ledgers) that can be traded at once per wallet. If 5, only 5 assets may have open positions. Env: STRATEGY__MAX_ACTIVE_LEDGERS.",
+    )
+    asset_min_position_percent: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=100.0,
+        description="Minimum post-tracking exposure as % of account total value to consider opening (0 = disabled). Env: STRATEGY__ASSET_MIN_POSITION_PERCENT.",
+    )
+    asset_min_position_shares: float = Field(
+        default=0.0,
+        ge=0.0,
+        description="Minimum post-tracking shares for the asset to consider opening. Env: STRATEGY__ASSET_MIN_POSITION_SHARES.",
+    )
+    close_total_threshold_pct: float = Field(
+        default=80.0,
+        ge=0.0,
+        le=100.0,
+        description="When trader has closed this % of post-tracking (per stage), bot closes positions progressively. E.g. 80 = 80%%. Env: STRATEGY__CLOSE_TOTAL_THRESHOLD_PCT.",
+    )
+
+
 class TrackingSettings(BaseSettings):
     """Configuration for trade tracking (polling)."""
 
@@ -240,6 +281,10 @@ class Settings(BaseSettings):
     order_execution: OrderExecutionSettings = Field(
         default_factory=OrderExecutionSettings,
         description="Order execution configuration (e.g. minimum_amount for place_buy_minimum).",
+    )
+    strategy: StrategySettings = Field(
+        default_factory=StrategySettings,
+        description="Copy-trading strategy: sizing, open/close thresholds (STRATEGY__*).",
     )
 
     @classmethod

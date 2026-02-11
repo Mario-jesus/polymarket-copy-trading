@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import structlog
 
@@ -27,6 +27,19 @@ class SnapshotResult:
     ledgers_updated: List[TrackingLedger]
     """Ledgers created or updated with snapshot_t0_shares; post_tracking_shares set to 0."""
     error: Optional[str] = None
+
+
+def _parse_position(p: PositionSchema) -> Optional[Tuple[str, float]]:
+    """Extract (asset, size) from a Data API position. None if invalid."""
+    asset = p.get("asset")
+    size_raw = p.get("size")
+    if asset is None or size_raw is None:
+        return None
+    try:
+        size_f = float(size_raw)
+    except (TypeError, ValueError):
+        return None
+    return (str(asset).strip(), size_f)
 
 
 class SnapshotBuilderService:
@@ -56,9 +69,9 @@ class SnapshotBuilderService:
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def build_snapshot_t0(self, wallet: str) -> SnapshotResult:
-        """Fetch current positions for wallet, aggregate by (condition_id, outcome), persist snapshot t0.
+        """Fetch current positions for wallet, one ledger per asset (positionId), persist snapshot t0.
 
-        For each (condition_id, outcome) sets snapshot_t0_shares to the current size and
+        For each (wallet, asset) sets snapshot_t0_shares to the position size and
         post_tracking_shares to 0. Paginates get_positions until no more pages.
 
         Args:
@@ -69,8 +82,8 @@ class SnapshotBuilderService:
         """
         wallet = wallet.strip()
         ledgers: List[TrackingLedger] = []
-        # Aggregate by (condition_id, outcome) -> total size (in case API returns duplicates)
-        aggregated: Dict[tuple[str, str], float] = defaultdict(float)
+        # Aggregate by asset -> total size (sum if API returns duplicates)
+        aggregated: Dict[str, float] = defaultdict(float)
 
         try:
             offset = 0
@@ -83,18 +96,18 @@ class SnapshotBuilderService:
                     offset=offset,
                 )
                 for p in chunk:
-                    parsed = self.__parse_position(p)
+                    parsed = _parse_position(p)
                     if parsed is None:
                         continue
-                    cid, out, size = parsed
-                    aggregated[(cid, out)] += size
+                    asset, size = parsed
+                    aggregated[asset] += size
                 if len(chunk) < limit:
                     break
                 offset += limit
                 page_count += 1
 
-            for (condition_id, outcome), total_size in aggregated.items():
-                ledger = self._repo.get_or_create(wallet, condition_id, outcome)
+            for asset, total_size in aggregated.items():
+                ledger = self._repo.get_or_create(wallet, asset)
                 updated = ledger.with_snapshot_t0(Decimal(str(total_size))).with_post_tracking(
                     Decimal("0")
                 )
@@ -125,17 +138,3 @@ class SnapshotBuilderService:
                 ledgers_updated=ledgers,
                 error=str(e),
             )
-
-    @staticmethod
-    def __parse_position(p: PositionSchema) -> Optional[tuple[str, str, float]]:
-        """Extract (condition_id, outcome, size) from a Data API position schema. Returns None if invalid."""
-        condition_id = p.get("conditionId")
-        outcome = p.get("outcome")
-        size_raw = p.get("size")
-        if condition_id is None or outcome is None or size_raw is None:
-            return None
-        try:
-            size_f = float(size_raw)
-        except (TypeError, ValueError):
-            return None
-        return (str(condition_id).strip(), str(outcome).strip(), size_f)
