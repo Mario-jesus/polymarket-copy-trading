@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import structlog
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, cast
 from structlog.contextvars import bound_contextvars
 
-from polymarket_copy_trading.clients.data_api.schema import PositionSchema, TradeSchema
+from polymarket_copy_trading.clients.data_api.schema import PositionSchema, TradeSchema, ValueSchema
 from polymarket_copy_trading.config import Settings
 from polymarket_copy_trading.utils.validation import mask_address
 
@@ -53,7 +53,7 @@ class DataApiClient:
         *,
         limit: int = 20,
         offset: int = 0,
-    ) -> list[TradeSchema]:
+    ) -> List[TradeSchema]:
         """Fetch latest trades for a user (most recent first).
 
         Args:
@@ -71,7 +71,7 @@ class DataApiClient:
             data_api_offset=offset,
         ):
             url = f"{self._base_url()}/trades"
-            params: dict[str, Any] = {
+            params: Dict[str, Any] = {
                 "user": user,
                 "limit": limit,
                 "offset": offset,
@@ -83,7 +83,7 @@ class DataApiClient:
                     data_api_response_type=type(data).__name__,
                 )
                 return []
-            result: list[TradeSchema] = []
+            result: List[TradeSchema] = []
             for x in cast(list[Any], data):
                 if isinstance(x, dict):
                     result.append(cast(TradeSchema, x))
@@ -133,7 +133,7 @@ class DataApiClient:
             )
             event_id = None
         # aiohttp/yarl only accept str, int, float in query params (no bool)
-        params: dict[str, Any] = {
+        params: Dict[str, Any] = {
             "user": user,
             "sizeThreshold": size_threshold,
             "redeemable": str(redeemable).lower(),
@@ -164,8 +164,50 @@ class DataApiClient:
                     data_api_response_type=type(data).__name__,
                 )
                 return []
-            result: list[PositionSchema] = []
+            result: List[PositionSchema] = []
             for x in cast(list[Any], data):
                 if isinstance(x, dict):
                     result.append(cast(PositionSchema, x))
+            return result
+
+    async def get_positions_value(
+        self,
+        user: str,
+        *,
+        market: Optional[List[str]] = None,
+    ) -> List[ValueSchema]:
+        """Get value of a user's positions from the Data API (GET /value).
+
+        Returns mark-to-market value of open positions. Does not include on-chain
+        cash (USDC.e); for full account value use AccountValueService.
+
+        API: GET /value
+
+        Args:
+            user: User address (0x..., required).
+            market: Optional list of market ids (conditionIds) to filter by.
+
+        Returns:
+            List of Value items from the Data API (user, value).
+        """
+        params: Dict[str, Any] = {"user": user}
+        if market:
+            params["market"] = ",".join(m.strip() for m in market)
+
+        user_masked = mask_address(user)
+        with bound_contextvars(
+            data_api_user_masked=user_masked,
+        ):
+            url = f"{self._base_url()}/value"
+            data = await self._http.get(url, params=params)
+            if not isinstance(data, list):
+                self._logger.warning(
+                    "data_api_get_positions_value_non_list",
+                    data_api_response_type=type(data).__name__,
+                )
+                return []
+            result: List[ValueSchema] = []
+            for x in cast(list[Any], data):
+                if isinstance(x, dict):
+                    result.append(cast(ValueSchema, x))
             return result

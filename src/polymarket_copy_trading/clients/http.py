@@ -165,3 +165,81 @@ class AsyncHttpClient:
                 url=url,
                 cause=last_error,
             ) from last_error
+
+    async def post(
+        self,
+        url: str,
+        *,
+        json: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Perform a POST request with JSON body and return JSON. Retries on failure.
+
+        Args:
+            url: Full URL to request.
+            json: Optional JSON-serializable body.
+
+        Returns:
+            Parsed JSON response (dict or list).
+
+        Raises:
+            PolymarketAPIError: If the request fails after all retries.
+        """
+        payload = json or {}
+        request_id = uuid.uuid4().hex[:12]
+        max_retries = self._settings.api.max_retries
+        last_error: Optional[Exception] = None
+
+        with bound_contextvars(
+            http_url=url,
+            http_request_id=request_id,
+            http_max_retries=max_retries,
+        ):
+            for attempt in range(max_retries):
+                with bound_contextvars(http_attempt=attempt + 1):
+                    try:
+                        session = await self._get_session()
+                        async with session.post(url, json=payload) as response:
+                            response.raise_for_status()
+                            return await response.json()
+                    except aiohttp.ClientResponseError as e:
+                        last_error = e
+                        self._logger.debug(
+                            "http_post_retry",
+                            error_type=type(e).__name__,
+                            error_message=str(e),
+                            http_status_code=getattr(e, "status", None),
+                        )
+                        await asyncio.sleep(self._backoff_delay(attempt))
+                    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                        last_error = e
+                        self._logger.debug(
+                            "http_post_retry",
+                            error_type=type(e).__name__,
+                            error_message=str(e),
+                        )
+                        await asyncio.sleep(self._backoff_delay(attempt))
+
+            status_code = (
+                getattr(last_error, "status", None)
+                if isinstance(last_error, aiohttp.ClientResponseError)
+                else None
+            )
+            self._logger.exception(
+                "http_post_failed",
+                http_status_code=status_code,
+                http_attempts=max_retries,
+                error_type=type(last_error).__name__ if last_error else None,
+                error_message=str(last_error) if last_error else None,
+            )
+            if isinstance(last_error, aiohttp.ClientResponseError):
+                raise PolymarketAPIError(
+                    f"POST failed after {max_retries} retries: {url}",
+                    url=url,
+                    status_code=getattr(last_error, "status", None),
+                    cause=last_error,
+                ) from last_error
+            raise PolymarketAPIError(
+                f"POST failed after {max_retries} retries: {url}",
+                url=url,
+                cause=last_error,
+            ) from last_error

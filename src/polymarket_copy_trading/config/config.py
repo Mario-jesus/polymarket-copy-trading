@@ -9,7 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Any, Literal, Optional
 
-from pydantic import Field, computed_field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -93,6 +93,14 @@ class ApiSettings(BaseSettings):
         ge=1,
         le=20,
         description="Maximum number of retries for failed requests.",
+    )
+    polygon_rpc_url: str = Field(
+        default="https://polygon-rpc.com",
+        description="Polygon RPC endpoint for JSON-RPC (eth_call, etc.). Env: API__POLYGON_RPC_URL.",
+    )
+    polygon_usdc_e_address: str = Field(
+        default="0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+        description="USDC.e (bridged) contract address on Polygon. Env: API__POLYGON_USDC_E_ADDRESS.",
     )
 
 
@@ -200,12 +208,23 @@ class TrackingSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    # Raw string from env so pydantic-settings does not try to JSON-decode it (list[str] would trigger json.loads).
-    target_wallets_raw: str = Field(
+    target_wallet: str = Field(
         default="",
-        description="Wallet addresses to track, comma-separated. Env: TRACKING__TARGET_WALLETS.",
+        description="Wallet address to track (single wallet). Env: TRACKING__TARGET_WALLET (or TRACKING__TARGET_WALLETS).",
         validation_alias="target_wallets",
     )
+
+    @field_validator("target_wallet", mode="before")
+    @classmethod
+    def _take_first_wallet(cls, v: object) -> str:
+        """If comma-separated (legacy), take only the first wallet."""
+        if not v or not isinstance(v, str):
+            return ""
+        s = v.strip()
+        if "," in s:
+            s = s.split(",")[0].strip()
+        return s
+
     poll_seconds: float = Field(
         default=3.0,
         ge=0.5,
@@ -224,14 +243,6 @@ class TrackingSettings(BaseSettings):
         le=5000,
         description="Max size of the trade queue (tracker -> consumer).",
     )
-
-    @computed_field
-    @property
-    def target_wallets(self) -> list[str]:
-        """Parse comma-separated target_wallets_raw into list of stripped strings."""
-        if not self.target_wallets_raw or not self.target_wallets_raw.strip():
-            return []
-        return [s.strip() for s in self.target_wallets_raw.split(",") if s.strip()]
 
 
 class Settings(BaseSettings):

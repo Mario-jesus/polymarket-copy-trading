@@ -5,15 +5,21 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from uuid import UUID
 
 import structlog
 
 from polymarket_copy_trading.clients.data_api import DataApiClient, PositionSchema
 from polymarket_copy_trading.models.tracking_ledger import TrackingLedger
+from polymarket_copy_trading.models.tracking_session import SessionStatus, TrackingSession
 from polymarket_copy_trading.persistence.repositories.interfaces.tracking_repository import (
     ITrackingRepository,
+)
+from polymarket_copy_trading.persistence.repositories.interfaces.tracking_session_repository import (
+    ITrackingSessionRepository,
 )
 from polymarket_copy_trading.utils.validation import mask_address
 
@@ -27,6 +33,8 @@ class SnapshotResult:
     ledgers_updated: List[TrackingLedger]
     """Ledgers created or updated with snapshot_t0_shares; post_tracking_shares set to 0."""
     error: Optional[str] = None
+    session_id: Optional[UUID] = None
+    """TrackingSession id for the session that ran this snapshot."""
 
 
 def _parse_position(p: PositionSchema) -> Optional[Tuple[str, float]]:
@@ -52,6 +60,7 @@ class SnapshotBuilderService:
         self,
         data_api: DataApiClient,
         tracking_repository: ITrackingRepository,
+        tracking_session_repository: ITrackingSessionRepository,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
         logger_name: Optional[str] = None,
@@ -61,11 +70,13 @@ class SnapshotBuilderService:
         Args:
             data_api: Data API client (injected).
             tracking_repository: Tracking ledger repository (injected).
+            tracking_session_repository: Session repository for t0 lifecycle (injected).
             get_logger: Logger factory (injected).
             logger_name: Optional logger name (defaults to class name).
         """
         self._data_api = data_api
         self._repo = tracking_repository
+        self._session_repo = tracking_session_repository
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def build_snapshot_t0(self, wallet: str) -> SnapshotResult:
@@ -73,6 +84,9 @@ class SnapshotBuilderService:
 
         For each (wallet, asset) sets snapshot_t0_shares to the position size and
         post_tracking_shares to 0. Paginates get_positions until no more pages.
+
+        Creates or reuses a TrackingSession; on success marks snapshot_completed_at,
+        on error marks session status ERROR and ended_at.
 
         Args:
             wallet: Tracked wallet address (0x...).
@@ -82,8 +96,18 @@ class SnapshotBuilderService:
         """
         wallet = wallet.strip()
         ledgers: List[TrackingLedger] = []
-        # Aggregate by asset -> total size (sum if API returns duplicates)
         aggregated: Dict[str, float] = defaultdict(float)
+
+        session = self._session_repo.get_active_for_wallet(wallet)
+        if session is None:
+            session = TrackingSession.create(wallet)
+            self._session_repo.save(session)
+        else:
+            self._logger.info(
+                "snapshot_reusing_session",
+                session_id=str(session.id),
+                tracking_wallet_masked=mask_address(wallet),
+            )
 
         try:
             offset = 0
@@ -114,21 +138,32 @@ class SnapshotBuilderService:
                 self._repo.save(updated)
                 ledgers.append(updated)
 
+            now = datetime.now(timezone.utc)
+            session = session.with_snapshot_completed(now, source="positions")
+            self._session_repo.save(session)
+
             self._logger.info(
                 "snapshot_t0_built",
                 tracking_wallet_masked=mask_address(wallet),
                 ledgers_count=len(ledgers),
+                session_id=str(session.id),
             )
             return SnapshotResult(
                 wallet=wallet,
                 success=True,
                 ledgers_updated=ledgers,
                 error=None,
+                session_id=session.id,
             )
         except Exception as e:  # pragma: no cover
+            now = datetime.now(timezone.utc)
+            session = session.with_ended(now, status=SessionStatus.ERROR)
+            self._session_repo.save(session)
+
             self._logger.exception(
                 "snapshot_t0_build_error",
                 tracking_wallet_masked=mask_address(wallet),
+                session_id=str(session.id),
                 error_type=type(e).__name__,
                 error_message=str(e),
             )
@@ -137,4 +172,5 @@ class SnapshotBuilderService:
                 success=False,
                 ledgers_updated=ledgers,
                 error=str(e),
+                session_id=session.id,
             )

@@ -3,16 +3,24 @@
 
 from polymarket_copy_trading.persistence.repositories.interfaces import (
     IBotPositionRepository,
+    ISeenTradeRepository,
     ITrackingRepository,
+    ITrackingSessionRepository,
 )
 from polymarket_copy_trading.persistence.repositories.in_memory import (
     InMemoryBotPositionRepository,
+    InMemorySeenTradeRepository,
     InMemoryTrackingRepository,
+    InMemoryTrackingSessionRepository,
 )
 
 __all__ = [
+    "ISeenTradeRepository",
     "ITrackingRepository",
+    "ITrackingSessionRepository",
     "IBotPositionRepository",
+    "InMemorySeenTradeRepository",
     "InMemoryTrackingRepository",
+    "InMemoryTrackingSessionRepository",
     "InMemoryBotPositionRepository",
 ]

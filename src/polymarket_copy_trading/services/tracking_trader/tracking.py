@@ -5,19 +5,23 @@ from __future__ import annotations
 
 import asyncio
 import structlog
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 from collections.abc import Callable
-from polymarket_copy_trading.clients.data_api import DataApiClient
-from polymarket_copy_trading.config import Settings
-from polymarket_copy_trading.queue import IAsyncQueue, QueueMessage
+from polymarket_copy_trading.models.seen_trade import SeenTrade
+from polymarket_copy_trading.queue import QueueMessage
 from polymarket_copy_trading.utils.dedupe import trade_key
 from polymarket_copy_trading.utils.validation import is_hex_address, mask_address
 from polymarket_copy_trading.services.tracking_trader.trade_dto import (
     DataApiTradeDTO,
 )
 
-# Cap for seen_keys before resetting to avoid unbounded growth when tracking long-lived.
-SEEN_KEYS_MAX = 5000
+if TYPE_CHECKING:
+    from polymarket_copy_trading.config import Settings
+    from polymarket_copy_trading.clients.data_api import DataApiClient
+    from polymarket_copy_trading.queue import IAsyncQueue
+    from polymarket_copy_trading.persistence.repositories.interfaces.seen_trade_repository import (
+        ISeenTradeRepository,
+    )
 
 
 class TradeTracker:
@@ -25,9 +29,10 @@ class TradeTracker:
 
     def __init__(
         self,
-        settings: Settings,
-        data_api: DataApiClient,
-        queue: IAsyncQueue[QueueMessage[DataApiTradeDTO]],
+        settings: "Settings",
+        data_api: "DataApiClient",
+        queue: "IAsyncQueue[QueueMessage[DataApiTradeDTO]]",
+        seen_trade_repository: "ISeenTradeRepository",
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
         logger_name: Optional[str] = None,
@@ -38,12 +43,14 @@ class TradeTracker:
             settings: Application settings (uses settings.tracking).
             data_api: Data API client (injected).
             queue: Async queue for new trades (injected).
+            seen_trade_repository: Repository for deduplication (in-memory or DB).
             get_logger: Logger factory (injected) with default of structlog.get_logger.
             logger_name: Optional logger name (defaults to class name).
         """
         self._data_api = data_api
         self._settings = settings
         self._queue = queue
+        self._seen_repo = seen_trade_repository
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def track(
@@ -55,7 +62,7 @@ class TradeTracker:
     ) -> None:
         """Poll for new trades and push them to the queue.
 
-        First poll establishes a baseline (seen_keys). Subsequent polls
+        First poll establishes a baseline (seen_trade_repository). Subsequent polls
         push only trades whose key was not seen before. Stop with Ctrl+C.
 
         Args:
@@ -74,12 +81,14 @@ class TradeTracker:
         if limit <= 0:
             limit = 10
 
-        seen_keys: set[str] = set()
-
-        # Baseline fetch
+        # Baseline fetch: mark all current trades as seen
         latest = await self._data_api.get_trades(wallet, limit=limit, offset=0)
-        for t in latest:
-            seen_keys.add(trade_key(t))
+        baseline = [
+            SeenTrade.create(wallet, trade_key(cast(dict[str, Any], t)))
+            for t in latest
+        ]
+        if baseline:
+            self._seen_repo.add_batch(baseline)
 
         wallet_masked = mask_address(wallet)
         self._logger.debug(
@@ -98,11 +107,12 @@ class TradeTracker:
                 await asyncio.sleep(poll_seconds)
                 newest = await self._data_api.get_trades(wallet, limit=limit, offset=0)
                 for t in reversed(newest):
-                    k = trade_key(t)
-                    if k in seen_keys:
+                    t_dict = cast(dict[str, Any], t)
+                    k = trade_key(t_dict)
+                    if self._seen_repo.contains(wallet, k):
                         continue
-                    seen_keys.add(k)
-                    trade = DataApiTradeDTO.from_response(t)
+                    self._seen_repo.add(SeenTrade.create(wallet, k))
+                    trade = DataApiTradeDTO.from_response(t_dict)
                     self._logger.info(
                         "tracking_new_trade",
                         tracking_wallet_masked=wallet_masked,
@@ -120,9 +130,6 @@ class TradeTracker:
                             metadata={"wallet": wallet},
                         )
                     )
-                if len(seen_keys) > SEEN_KEYS_MAX:
-                    seen_keys.clear()
-                    seen_keys.update(trade_key(t) for t in newest)
         except asyncio.CancelledError:
             self._logger.info(
                 "tracking_stopped",

@@ -11,6 +11,7 @@ from polymarket_copy_trading.services.tracking_trader.trade_dto import DataApiTr
 from polymarket_copy_trading.utils.validation import mask_address
 
 if TYPE_CHECKING:
+    from polymarket_copy_trading.services.copy_trading import CopyTradingEngineService
     from polymarket_copy_trading.services.trade_processing.post_tracking_engine import (
         PostTrackingEngine,
     )
@@ -23,6 +24,7 @@ class TradeProcessorService:
         self,
         *,
         post_tracking_engine: Optional["PostTrackingEngine"] = None,
+        copy_trading_engine: Optional["CopyTradingEngineService"] = None,
         get_logger: Callable[[str], Any] = structlog.get_logger,
         logger_name: Optional[str] = None,
     ) -> None:
@@ -30,10 +32,12 @@ class TradeProcessorService:
 
         Args:
             post_tracking_engine: Optional; if set, ledger is updated per BUY/SELL before logging.
+            copy_trading_engine: Optional; if set, evaluates open/close policies and executes orders after post-tracking.
             get_logger: Logger factory (injected).
             logger_name: Optional logger name (defaults to class name).
         """
         self._post_tracking_engine = post_tracking_engine
+        self._copy_trading_engine = copy_trading_engine
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def process(self, message: QueueMessage[DataApiTradeDTO]) -> None:
@@ -47,8 +51,14 @@ class TradeProcessorService:
         wallet = meta.get("wallet", "")
         is_snapshot = meta.get("is_snapshot", False)
 
+        ledger_after = None
         if self._post_tracking_engine is not None and wallet and not is_snapshot:
-            self._post_tracking_engine.apply_trade(wallet, trade)
+            ledger_after = self._post_tracking_engine.apply_trade(wallet, trade)
+
+        if self._copy_trading_engine is not None and wallet and not is_snapshot and ledger_after is not None:
+            await self._copy_trading_engine.evaluate_and_execute(
+                wallet, trade, ledger_after
+            )
 
         self._logger.info(
             "trade_processed",

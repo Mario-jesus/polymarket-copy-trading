@@ -87,12 +87,13 @@ class EventNotificationStyler(NotificationStyler):
         """Render system started notification."""
         emoji, title = self._title(message.event_type)
         payload = message.payload or {}
+        raw_wallet = payload.get("target_wallet")
         raw_wallets = payload.get("target_wallets")
-        wallet_strs: list[str] = (
-            [str(w) for w in cast(list[Any], raw_wallets)]
-            if isinstance(raw_wallets, list)
-            else []
-        )
+        wallet_strs: list[str] = []
+        if raw_wallet and isinstance(raw_wallet, str):
+            wallet_strs = [raw_wallet]
+        elif isinstance(raw_wallets, list):
+            wallet_strs = [str(w) for w in cast(list[Any], raw_wallets)]
         lines = [f"{emoji} <b>{title}</b>\n", self._section("🚀 Status", [("", message.message)])]
         if wallet_strs:
             lines.append(self._section("👛 Wallets", [("", ", ".join(wallet_strs))]))

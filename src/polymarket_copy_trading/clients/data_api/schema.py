@@ -58,3 +58,10 @@ class PositionSchema(TypedDict, total=False):
     oppositeAsset: str
     endDate: str
     negativeRisk: bool
+
+
+class ValueSchema(TypedDict, total=False):
+    """GET /value item (Value schema). Keys match API response (camelCase)."""
+
+    user: str
+    value: float

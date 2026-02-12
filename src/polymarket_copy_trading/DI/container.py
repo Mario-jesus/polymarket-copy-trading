@@ -11,14 +11,27 @@ from polymarket_copy_trading.queue import InMemoryQueue, QueueMessage
 from polymarket_copy_trading.clients.clob_client import AsyncClobClient
 from polymarket_copy_trading.clients.data_api import DataApiClient
 from polymarket_copy_trading.clients.http import AsyncHttpClient
+from polymarket_copy_trading.clients.rcp_client import RpcClient
 from polymarket_copy_trading.notifications.notification_manager import NotificationService
 from polymarket_copy_trading.notifications.strategies.base import BaseNotificationStrategy
 from polymarket_copy_trading.notifications.strategies.console import ConsoleNotifier
 from polymarket_copy_trading.notifications.strategies.telegram import TelegramNotifier
 from polymarket_copy_trading.notifications.stylers.notification_styler import EventNotificationStyler
+from polymarket_copy_trading.persistence.repositories.in_memory import (
+    InMemoryBotPositionRepository,
+    InMemorySeenTradeRepository,
+    InMemoryTrackingRepository,
+    InMemoryTrackingSessionRepository,
+)
+from polymarket_copy_trading.services.copy_trading import CopyTradingEngineService
 from polymarket_copy_trading.services.order_execution.market_order_execution import MarketOrderExecutionService
-from polymarket_copy_trading.services.tracking_trader import TradeTracker, TrackingRunner, DataApiTradeDTO
-from polymarket_copy_trading.services.trade_processing import TradeProcessorService
+from polymarket_copy_trading.services.account_value import AccountValueService
+from polymarket_copy_trading.services.snapshot import SnapshotBuilderService
+from polymarket_copy_trading.services.tracking_trader import TradeTracker, DataApiTradeDTO
+from polymarket_copy_trading.services.trade_processing import (
+    PostTrackingEngine,
+    TradeProcessorService,
+)
 from polymarket_copy_trading.consumers.trade_consumer import TradeConsumer
 
 
@@ -55,6 +68,12 @@ class Container(containers.DeclarativeContainer):
         settings=config,
     )
 
+    rpc_client = providers.Singleton(
+        RpcClient,
+        http_client=http_client,
+        settings=config,
+    )
+
     clob_client = providers.Singleton(
         AsyncClobClient,
         settings=config,
@@ -79,8 +98,46 @@ class Container(containers.DeclarativeContainer):
 
     trade_queue = providers.Singleton(_build_trade_queue, config)
 
+    tracking_repository = providers.Singleton(InMemoryTrackingRepository)
+
+    bot_position_repository = providers.Singleton(InMemoryBotPositionRepository)
+
+    seen_trade_repository = providers.Singleton(InMemorySeenTradeRepository)
+
+    tracking_session_repository = providers.Singleton(InMemoryTrackingSessionRepository)
+
+    snapshot_builder_service = providers.Singleton(
+        SnapshotBuilderService,
+        data_api=data_api_client,
+        tracking_repository=tracking_repository,
+        tracking_session_repository=tracking_session_repository,
+    )
+
+    account_value_service = providers.Singleton(
+        AccountValueService,
+        rpc_client=rpc_client,
+        data_api=data_api_client,
+    )
+
+    copy_trading_engine_service = providers.Singleton(
+        CopyTradingEngineService,
+        tracking_repository=tracking_repository,
+        bot_position_repository=bot_position_repository,
+        account_value_service=account_value_service,
+        data_api=data_api_client,
+        market_order_execution=market_order_execution_service,
+        settings=config,
+    )
+
+    post_tracking_engine = providers.Singleton(
+        PostTrackingEngine,
+        tracking_repository=tracking_repository,
+    )
+
     trade_processor_service = providers.Singleton(
         TradeProcessorService,
+        post_tracking_engine=post_tracking_engine,
+        copy_trading_engine=copy_trading_engine_service,
     )
 
     trade_consumer = providers.Singleton(
@@ -94,10 +151,5 @@ class Container(containers.DeclarativeContainer):
         settings=config,
         data_api=data_api_client,
         queue=trade_queue,
-    )
-
-    tracking_runner = providers.Singleton(
-        TrackingRunner,
-        tracker=trade_tracker,
-        settings=config,
+        seen_trade_repository=seen_trade_repository,
     )
