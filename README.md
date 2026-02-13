@@ -94,7 +94,7 @@ STRATEGY__FIXED_POSITION_AMOUNT_USDC=10
 From the project root (where the `src` folder is):
 
 ```bash
-PYTHONPATH=src python -m polymarket_copy_trading.main
+PYTHONPATH=src pipenv run python -m polymarket_copy_trading.main
 ```
 
 To stop: press `Ctrl+C`. The system will perform an orderly shutdown (tracking session close, queues, notifications).
