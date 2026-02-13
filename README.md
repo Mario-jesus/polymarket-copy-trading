@@ -138,7 +138,3 @@ await run()
 - **No compartas tu `.env`** ni lo subas a repositorios. El `.env` suele estar en `.gitignore`.
 - Usa una wallet dedicada con fondos limitados para copy trading.
 - Las credenciales de Polymarket permiten operar en tu cuenta: protégelas.
-
-## Licencia
-
-Ver archivo LICENSE en el repositorio.
