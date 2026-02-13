@@ -35,7 +35,7 @@ class PostTrackingEngine:
         self._repo = tracking_repository
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
-    def apply_trade(self, wallet: str, trade: DataApiTradeDTO) -> Optional[TrackingLedger]:
+    async def apply_trade(self, wallet: str, trade: DataApiTradeDTO) -> Optional[TrackingLedger]:
         """Apply BUY/SELL rule to the ledger for this trade's (wallet, asset).
 
         BUY: add size to post_tracking_shares.
@@ -71,8 +71,8 @@ class PostTrackingEngine:
         size_d = Decimal(str(size_raw))
 
         if side == "BUY":
-            self._repo.get_or_create(wallet, asset)
-            updated = self._repo.add_post_tracking_delta(wallet, asset, size_d)
+            await self._repo.get_or_create(wallet, asset)
+            updated = await self._repo.add_post_tracking_delta(wallet, asset, size_d)
             self._logger.debug(
                 "post_tracking_buy",
                 wallet_masked=mask_address(wallet),
@@ -83,11 +83,11 @@ class PostTrackingEngine:
             return updated
 
         # SELL: ensure ledger exists, then reduce post_tracking first; excess reduces snapshot_t0
-        ledger = self._repo.get_or_create(wallet, asset)
+        ledger = await self._repo.get_or_create(wallet, asset)
         new_pt = ledger.post_tracking_shares - size_d
         if new_pt >= 0:
             updated = ledger.with_post_tracking(new_pt)
-            self._repo.save(updated)
+            await self._repo.save(updated)
             self._logger.debug(
                 "post_tracking_sell_from_pt",
                 wallet_masked=mask_address(wallet),
@@ -100,7 +100,7 @@ class PostTrackingEngine:
         excess = -new_pt
         new_snapshot = max(Decimal(0), ledger.snapshot_t0_shares - excess)
         updated = ledger.with_post_tracking(Decimal(0)).with_snapshot_t0(new_snapshot)
-        self._repo.save(updated)
+        await self._repo.save(updated)
         self._logger.debug(
             "post_tracking_sell_into_snapshot",
             wallet_masked=mask_address(wallet),

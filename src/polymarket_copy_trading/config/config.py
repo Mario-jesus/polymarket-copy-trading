@@ -203,6 +203,31 @@ class StrategySettings(BaseSettings):
     )
 
 
+class OrderAnalysisSettings(BaseSettings):
+    """Configuration for OrderAnalysisWorker (reconcile placed orders with CLOB trades)."""
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    queue_size: int = Field(
+        default=500,
+        ge=1,
+        le=5000,
+        description="Max size of the pending-orders queue (orders waiting for trade confirmation). Env: ORDER_ANALYSIS__QUEUE_SIZE.",
+    )
+    poll_interval_sec: float = Field(
+        default=2.0,
+        ge=0.5,
+        le=60.0,
+        description="Polling interval in seconds when waiting for trade to appear in get_trades. Env: ORDER_ANALYSIS__POLL_INTERVAL_SEC.",
+    )
+    max_attempts: int = Field(
+        default=30,
+        ge=1,
+        le=120,
+        description="Max polling attempts before giving up on a trade. Env: ORDER_ANALYSIS__MAX_ATTEMPTS.",
+    )
+
+
 class TrackingSettings(BaseSettings):
     """Configuration for trade tracking (polling)."""
 
@@ -276,6 +301,10 @@ class Settings(BaseSettings):
     tracking: TrackingSettings = Field(
         default_factory=TrackingSettings,
         description="Trade tracking (polling) configuration.",
+    )
+    order_analysis: OrderAnalysisSettings = Field(
+        default_factory=OrderAnalysisSettings,
+        description="Order analysis worker (reconcile orders with CLOB trades).",
     )
     polymarket: PolymarketClobSettings = Field(
         ...,

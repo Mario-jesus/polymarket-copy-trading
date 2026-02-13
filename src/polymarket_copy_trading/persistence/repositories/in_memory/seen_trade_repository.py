@@ -21,17 +21,17 @@ class InMemorySeenTradeRepository(ISeenTradeRepository):
         """Initialize an empty in-memory store."""
         self._store: dict[tuple[str, str], SeenTrade] = {}
 
-    def contains(self, wallet: str, trade_key: str) -> bool:
+    async def contains(self, wallet: str, trade_key: str) -> bool:
         """Return True if (wallet, trade_key) has been seen."""
         return _key(wallet, trade_key) in self._store
 
-    def add(self, seen_trade: SeenTrade) -> None:
+    async def add(self, seen_trade: SeenTrade) -> None:
         """Record that a trade has been seen. Idempotent."""
         k = _key(seen_trade.wallet, seen_trade.trade_key)
         if k not in self._store:
             self._store[k] = seen_trade
 
-    def add_batch(self, seen_trades: list[SeenTrade]) -> None:
+    async def add_batch(self, seen_trades: list[SeenTrade]) -> None:
         """Record multiple trades in one pass."""
         for st in seen_trades:
             k = _key(st.wallet, st.trade_key)

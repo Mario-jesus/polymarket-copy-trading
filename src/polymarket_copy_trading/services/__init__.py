@@ -8,6 +8,7 @@ from polymarket_copy_trading.services.strategy import ClosePolicy, ClosePolicyIn
 from polymarket_copy_trading.services.order_execution import MarketOrderExecutionService
 from polymarket_copy_trading.services.snapshot import SnapshotBuilderService, SnapshotResult
 from polymarket_copy_trading.services.copy_trading import CopyTradingEngineService
+from polymarket_copy_trading.services.pnl import PnLResult, PnLService
 from polymarket_copy_trading.services.trade_processing import (
     PostTrackingEngine,
     TradeProcessorService,
@@ -15,6 +16,8 @@ from polymarket_copy_trading.services.trade_processing import (
 
 __all__ = [
     "CopyTradingEngineService",
+    "PnLResult",
+    "PnLService",
     "AccountValueResult",
     "AccountValueService",
     "OpenPolicy",

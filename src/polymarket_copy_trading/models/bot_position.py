@@ -57,6 +57,32 @@ class BotPosition:
     fees: Decimal = Decimal("0")
     """Total fees in USDC (open + close). For reporting and net PnL."""
 
+    def with_close_proceeds_updated(
+        self,
+        close_proceeds_usdc: Decimal,
+        close_fees: Decimal,
+    ) -> BotPosition:
+        """Return a copy with close_proceeds_usdc set and fees increased by close_fees.
+
+        Use when a position was already closed (status CLOSED) but we now have
+        the real close amounts from the CLOB trade. Only valid for CLOSED positions.
+        """
+        new_fees = self.fees + close_fees
+        return BotPosition(
+            id=self.id,
+            ledger_id=self.ledger_id,
+            tracked_wallet=self.tracked_wallet,
+            asset=self.asset,
+            shares_held=self.shares_held,
+            entry_price=self.entry_price,
+            status=self.status,
+            opened_at=self.opened_at,
+            closed_at=self.closed_at,
+            entry_cost_usdc=self.entry_cost_usdc,
+            close_proceeds_usdc=close_proceeds_usdc,
+            fees=new_fees,
+        )
+
     def with_closed(
         self,
         closed_at: Optional[datetime] = None,

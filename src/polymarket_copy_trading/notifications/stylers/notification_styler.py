@@ -1,91 +1,188 @@
 # -*- coding: utf-8 -*-
-"""Event-based notification styler with emoji separators (Telegram-style)."""
+"""Event-based notification styler with emoji separators (Telegram-style).
+
+Each event type has a dedicated protected render method. Format adapted from
+Polymarket copy-trading context (USDC, shares, condition_id, etc.).
+"""
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any, cast
 
 from polymarket_copy_trading.notifications.types import NotificationMessage, NotificationStyler
 
 
-_TRADE_EVENT_TYPES = frozenset({"trade_new", "position_opened", "position_closed"})
-
-
 class EventNotificationStyler(NotificationStyler):
-    """Render notifications by event_type with emojis, separators and formatted sections."""
+    """Render notifications by event_type. One protected method per type."""
 
-    def render(self, message: NotificationMessage) -> str:
-        """Dispatch to the appropriate renderer based on event_type."""
-        if message.event_type in _TRADE_EVENT_TYPES:
-            return self._render_trade(message)
-        if message.event_type == "system_started":
-            return self._render_system_started(message)
-        if message.event_type == "system_stopped":
-            return self._render_system_stopped(message)
-        return self._render_generic(message)
+    def render(self, message: NotificationMessage, *, parse_html: bool = False) -> str:
+        """Dispatch to the appropriate renderer based on event_type.
 
-    def _render_trade(self, message: NotificationMessage) -> str:
-        """Render trade/position notifications."""
-        payload: dict[str, Any] = message.payload.copy() if message.payload else {}
-        trade_raw = payload.get("trade")
-        if isinstance(trade_raw, dict):
-            trade = cast(dict[str, Any], trade_raw)
+        Args:
+            message: Notification message to render.
+            parse_html: If True, output includes HTML tags (e.g. <b>) for rich display.
+                If False (default), output is plain text without HTML.
+        """
+        if message.event_type == "position_opened":
+            result = self._render_position_opened(message)
+        elif message.event_type == "position_closed":
+            result = self._render_position_closed(message)
+        elif message.event_type == "trade_failed":
+            result = self._render_trade_failed(message)
+        elif message.event_type == "system_started":
+            result = self._render_system_started(message)
+        elif message.event_type == "system_stopped":
+            result = self._render_system_stopped(message)
+        elif message.event_type == "trade_new":
+            result = self._render_trade_new(message)
         else:
-            trade = {}
+            result = self._render_generic(message)
 
-        wallet_value = payload.get("wallet")
-        wallet = wallet_value if isinstance(wallet_value, str) else trade.get("wallet")
-        emoji, title = self._title(message.event_type)
-        is_snapshot = payload.get("isSnapshot", False)
-        snapshot_tag = " 📸 Snapshot" if is_snapshot else ""
+        if not parse_html:
+            result = self._strip_html(result)
+        return result
 
-        summary_lines = [
-            f"{emoji} <b>{title}{snapshot_tag}</b>\n",
-            self._section(
-                "📊 Trade Summary",
-                [
-                    ("👛 Wallet", wallet or "N/A"),
-                    ("🆔 Market ID", trade.get("market_id") or "N/A"),
-                    ("🔗 Condition ID", trade.get("condition_id") or "N/A"),
-                    ("🏷️ Event Slug", trade.get("event_slug") or ""),
-                    ("🧩 Market Slug", trade.get("slug") or ""),
-                ],
-            ),
-            self._section(
-                "💰 Trade Details",
-                [
-                    ("🕒 Timestamp", self._format_timestamp(trade.get("timestamp"))),
-                    ("📈 Side", trade.get("side") or "N/A"),
-                    ("📉 Outcome", trade.get("outcome") or "N/A"),
-                    ("💵 Price", self._format_number(trade.get("price"))),
-                    ("📦 Size", self._format_number(trade.get("size"))),
-                    ("🔗 Transaction", trade.get("transaction_hash") or ""),
-                    ("🪙 Asset", trade.get("asset") or ""),
-                ],
-            ),
-        ]
+    @staticmethod
+    def _strip_html(text: str) -> str:
+        """Remove HTML tags from text. Returns plain text."""
+        return re.sub(r"<[^>]+>", "", text)
 
-        trader_name = trade.get("trader_name") or trade.get("trader_pseudonym")
-        if trader_name:
-            summary_lines.append(
-                self._section("👤 Trader", [("🎭 Nickname", trader_name)])
-            )
+    def _render_position_opened(self, message: NotificationMessage) -> str:
+        """Render position opened notification."""
+        payload = message.payload or {}
+        trade = self._extract_trade(payload)
+        wallet = trade.get("wallet") or payload.get("wallet") or "N/A"
+        asset = trade.get("asset") or "N/A"
+        position_id = trade.get("position_id") or "N/A"
+        tx_hash = trade.get("transaction_hash") or "N/A"
+        amount_usdc = self._format_amount(trade.get("entry_cost_usdc"))
+        shares = self._format_amount(trade.get("size"))
+        price = self._format_amount(trade.get("price"))
+        condition_id = trade.get("condition_id") or "N/A"
+        outcome = trade.get("outcome") or "N/A"
+        time_str = self._format_datetime_now()
 
-        title_text = trade.get("title")
-        if title_text:
-            summary_lines.append(
-                self._section(
-                    "📝 Market Title",
-                    [("", title_text)],
-                )
-            )
+        return (
+            f"🟢 <b>Position Opened</b>\n\n"
+            f"📊 <b>Trade Summary</b>\n"
+            f"{'─'*12}\n"
+            f"🪙  <b>Asset:</b> {asset}\n"
+            f"🔗 <b>Condition ID:</b> {condition_id}\n"
+            f"📉 <b>Outcome:</b> {outcome}\n\n"
 
-        return "\n".join([line for line in summary_lines if line]).strip()
+            f"👤 <b>Trader Info</b>\n"
+            f"{'─'*12}\n"
+            f"🔗 <b>Wallet:</b> {wallet}\n\n"
+
+            f"💰 <b>Trade Details</b>\n"
+            f"{'─'*12}\n"
+            f"🔑 <b>ID Position:</b> {position_id}\n"
+            f"🔗 <b>Transaction:</b> {tx_hash}\n"
+            f"📥 <b>Amount:</b> {amount_usdc} USDC\n"
+            f"🪙  <b>Shares:</b> {shares}\n"
+            f"💵 <b>Price:</b> {price} USDC\n\n"
+
+            f"⏰ <b>Time:</b> {time_str}"
+        )
+
+    def _render_position_closed(self, message: NotificationMessage) -> str:
+        """Render position closed notification with PnL."""
+        payload = message.payload or {}
+        trade = self._extract_trade(payload)
+        wallet = trade.get("wallet") or payload.get("wallet") or "N/A"
+        asset = trade.get("asset") or "N/A"
+        position_id = trade.get("position_id") or "N/A"
+        tx_hash = trade.get("transaction_hash") or "N/A"
+        entry_usdc = self._format_amount(trade.get("entry_cost_usdc"))
+        close_usdc = self._format_amount(trade.get("close_proceeds_usdc"))
+        shares = self._format_amount(trade.get("size"))
+        fees_usdc = self._format_amount(trade.get("fees_usdc"))
+        realized_pnl = trade.get("realized_pnl_usdc")
+        net_pnl = trade.get("net_pnl_usdc")
+        condition_id = trade.get("condition_id") or "N/A"
+        outcome = trade.get("outcome") or "N/A"
+        time_str = self._format_datetime_now()
+
+        pnl_indicator = self._pnl_indicator(net_pnl)
+        realized_str = self._format_amount(realized_pnl)
+        net_str = self._format_amount(net_pnl)
+
+        return (
+            f"🔴 <b>Position Closed</b>\n\n"
+            f"📊 <b>Trade Summary</b>\n"
+            f"{'─'*12}\n"
+            f"🪙 <b>Asset:</b> {asset}\n"
+            f"🔗 <b>Condition ID:</b> {condition_id}\n"
+            f"📉 <b>Outcome:</b> {outcome}\n\n"
+
+            f"👤 <b>Trader Info</b>\n"
+            f"{'─'*12}\n"
+            f"🔗 <b>Wallet:</b> {wallet}\n\n"
+
+            f"💰 <b>Trade Details</b>\n"
+            f"{'─'*12}\n"
+            f"🔑 <b>ID Position:</b> {position_id}\n"
+            f"🔗 <b>Transaction:</b> {tx_hash}\n"
+            f"📥 <b>Entry:</b> {entry_usdc} USDC\n"
+            f"📤 <b>Close Proceeds:</b> {close_usdc} USDC\n"
+            f"🪙 <b>Shares:</b> {shares}\n"
+            f"🧾 <b>Fees:</b> {fees_usdc} USDC\n\n"
+
+            f"📈 <b>P&L</b>\n"
+            f"{'─'*12}\n"
+            f"📊 <b>Realized:</b> {realized_str} USDC\n"
+            f"{pnl_indicator} <b>Net:</b> {net_str} USDC\n\n"
+
+            f"⏰ <b>Time:</b> {time_str}"
+        )
+
+    def _render_trade_failed(self, message: NotificationMessage) -> str:
+        """Render trade failed notification."""
+        payload = message.payload or {}
+        wallet = payload.get("wallet") or "N/A"
+        asset = payload.get("asset") or "N/A"
+        reason = payload.get("reason") or "Unknown"
+        is_open = payload.get("is_open", True)
+        position_id = payload.get("position_id") or "N/A"
+        order_id = payload.get("order_id") or "N/A"
+        error_msg = payload.get("error_message") or "N/A"
+        tx_hash = payload.get("transaction_hash") or "N/A"
+        amount = payload.get("amount")
+        amount_kind = payload.get("amount_kind", "")
+        time_str = self._format_datetime_now()
+
+        side_str = "BUY" if is_open else "SELL"
+        amount_line = ""
+        if amount is not None and amount_kind:
+            amount_line = f"📥 <b>Amount:</b> {self._format_amount(amount)} {amount_kind}\n"
+
+        return (
+            f"❌ <b>Trade Failed</b>\n\n"
+            f"📊 <b>Trade Summary</b>\n"
+            f"{'─'*12}\n"
+            f"🪙 <b>Asset:</b> {asset}\n"
+            f"📈 <b>Side:</b> {side_str}\n"
+            f"📋 <b>Reason:</b> {reason}\n\n"
+
+            f"👤 <b>Trader Info</b>\n"
+            f"{'─'*12}\n"
+            f"🔗 <b>Wallet:</b> {wallet}\n\n"
+
+            f"💰 <b>Failure Details</b>\n"
+            f"{'─'*12}\n"
+            f"🔑 <b>ID Position:</b> {position_id}\n"
+            f"📋 <b>Order ID:</b> {order_id}\n"
+            f"🔗 <b>Transaction:</b> {tx_hash}\n"
+            f"{amount_line}"
+            f"⚠️ <b>Error:</b> {error_msg}\n\n"
+
+            f"⏰ <b>Time:</b> {time_str}"
+        )
 
     def _render_system_started(self, message: NotificationMessage) -> str:
         """Render system started notification."""
-        emoji, title = self._title(message.event_type)
         payload = message.payload or {}
         raw_wallet = payload.get("target_wallet")
         raw_wallets = payload.get("target_wallets")
@@ -94,60 +191,59 @@ class EventNotificationStyler(NotificationStyler):
             wallet_strs = [raw_wallet]
         elif isinstance(raw_wallets, list):
             wallet_strs = [str(w) for w in cast(list[Any], raw_wallets)]
-        lines = [f"{emoji} <b>{title}</b>\n", self._section("🚀 Status", [("", message.message)])]
-        if wallet_strs:
-            lines.append(self._section("👛 Wallets", [("", ", ".join(wallet_strs))]))
-        return "\n".join([line for line in lines if line]).strip()
+        wallets_str = ", ".join(wallet_strs) if wallet_strs else "N/A"
+        time_str = self._format_datetime_now()
+
+        return (
+            f"▶️ <b>System Started</b>\n\n"
+            f"🚀 <b>Status</b>\n"
+            f"{'─'*12}\n"
+            f"{message.message}\n\n"
+            f"👛 <b>Target Wallets:</b> {wallets_str}\n\n"
+            f"⏰ <b>Time:</b> {time_str}"
+        )
 
     def _render_system_stopped(self, message: NotificationMessage) -> str:
         """Render system stopped notification."""
-        emoji, title = self._title(message.event_type)
-        lines = [f"{emoji} <b>{title}</b>\n", self._section("🛑 Status", [("", message.message)])]
-        return "\n".join([line for line in lines if line]).strip()
+        time_str = self._format_datetime_now()
+        return (
+            f"⏹️ <b>System Stopped</b>\n\n"
+            f"🛑 <b>Status</b>\n"
+            f"{'─'*12}\n"
+            f"{message.message}\n\n"
+            f"⏰ <b>Time:</b> {time_str}"
+        )
+
+    def _render_trade_new(self, message: NotificationMessage) -> str:
+        """Render trade_new (generic new trade). Falls back to position_opened style if trade present."""
+        payload = message.payload or {}
+        trade = self._extract_trade(payload)
+        if trade and trade.get("position_id"):
+            return self._render_position_opened(message)
+        return self._render_generic(message)
 
     def _render_generic(self, message: NotificationMessage) -> str:
         """Render unknown event types using message and payload."""
-        emoji, title = self._title(message.event_type)
-        lines = [f"{emoji} <b>{title}</b>", message.message]
+        event_title = message.event_type.replace("_", " ").title()
+        lines = [f"ℹ️ <b>{event_title}</b>\n", message.message]
         if message.payload:
+            lines.append("")
             for key in sorted(message.payload.keys()):
                 value = message.payload.get(key)
                 if value is not None:
                     lines.append(f"<b>{key}:</b> {value}")
         return "\n".join(lines).strip()
 
-    @staticmethod
-    def _title(event_type: str) -> tuple[str, str]:
-        """Get the emoji and title for the given event type."""
-        mapping = {
-            "position_opened": ("🟢", "Position Opened"),
-            "position_closed": ("🔴", "Position Closed"),
-            "trade_new": ("🆕", "New Trade"),
-            "system_started": ("▶️", "System Started"),
-            "system_stopped": ("⏹️", "System Stopped"),
-        }
-        return mapping.get(event_type, ("ℹ️", event_type.replace("_", " ").title()))
-
-    def _section(self, header: str, rows: list[tuple[str, Any]]) -> str:
-        """Format a section with a header and rows."""
-        lines: list[str] = []
-        content_lines: list[str] = []
-        for label, value in rows:
-            if not value:
-                continue
-            if label:
-                content_lines.append(f"{self._format_label(label)} {value}")
-            else:
-                content_lines.append(str(value))
-        if not content_lines:
-            return ""
-        lines.append(f"{self._format_heading(header)}\n{'─'*12}")
-        lines.extend(content_lines)
-        return "\n".join(lines) + "\n"
+    def _extract_trade(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Extract trade dict from payload (payload.trade or empty)."""
+        trade_raw = payload.get("trade")
+        if isinstance(trade_raw, dict):
+            return cast(dict[str, Any], trade_raw)
+        return {}
 
     @staticmethod
-    def _format_number(value: Any) -> str:
-        """Format a number with thousands separator and 4 decimal places."""
+    def _format_amount(value: Any) -> str:
+        """Format amount with thousands separator and 4 decimal places."""
         if value is None:
             return "N/A"
         try:
@@ -157,8 +253,28 @@ class EventNotificationStyler(NotificationStyler):
         return f"{number:,.4f}"
 
     @staticmethod
+    def _pnl_indicator(value: Any) -> str:
+        """Return emoji indicator for PnL (positive/negative/zero)."""
+        if value is None:
+            return "📊"
+        try:
+            n = float(value)
+        except (TypeError, ValueError):
+            return "📊"
+        if n > 0:
+            return "🟢"
+        if n < 0:
+            return "🔴"
+        return "⚪"
+
+    @staticmethod
+    def _format_datetime_now() -> str:
+        """Format current datetime for display."""
+        return datetime.now(timezone.utc).isoformat()
+
+    @staticmethod
     def _format_timestamp(value: Any) -> str:
-        """Format epoch seconds into ISO-8601 UTC when possible."""
+        """Format epoch seconds to readable datetime."""
         if value is None:
             return "N/A"
         try:
@@ -169,23 +285,3 @@ class EventNotificationStyler(NotificationStyler):
             return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
         except (OSError, OverflowError, ValueError):
             return str(value)
-
-    @staticmethod
-    def _format_heading(text: str) -> str:
-        """Format a section heading with bold text."""
-        if not text:
-            return ""
-        emoji, _, remainder = text.partition(" ")
-        if remainder:
-            return f"{emoji} <b>{remainder}</b>"
-        return f"<b>{text}</b>"
-
-    @staticmethod
-    def _format_label(label: str) -> str:
-        """Format row labels with bold text."""
-        if not label:
-            return ""
-        emoji, _, remainder = label.partition(" ")
-        if remainder:
-            return f"{emoji} <b>{remainder}:</b>"
-        return f"<b>{label}:</b>"

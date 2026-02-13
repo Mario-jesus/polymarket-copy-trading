@@ -53,7 +53,7 @@ class TradeProcessorService:
 
         ledger_after = None
         if self._post_tracking_engine is not None and wallet and not is_snapshot:
-            ledger_after = self._post_tracking_engine.apply_trade(wallet, trade)
+            ledger_after = await self._post_tracking_engine.apply_trade(wallet, trade)
 
         if self._copy_trading_engine is not None and wallet and not is_snapshot and ledger_after is not None:
             await self._copy_trading_engine.evaluate_and_execute(

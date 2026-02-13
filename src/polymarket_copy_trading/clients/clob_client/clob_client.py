@@ -34,6 +34,8 @@ if TYPE_CHECKING:
         BalanceAllowanceParams,
     )
 
+    from polymarket_copy_trading.clients.clob_client.schema import TradeSchema
+
 
 def _build_sync_client(settings: Settings) -> "ClobClient":
     """Build a sync ClobClient from settings.
@@ -101,7 +103,7 @@ class AsyncClobClient:
         """Access the underlying sync ClobClient for advanced or one-off calls."""
         return self._client
 
-    async def _run(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
+    async def _run[T](self, fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         """Run a sync call in a thread. Use for any py_clob_client method."""
         return await asyncio.to_thread(fn, *args, **kwargs)
 
@@ -133,12 +135,12 @@ class AsyncClobClient:
     async def get_orders(self, params: Optional["OpenOrderParams"] = None) -> List[Any]:
         """Fetch orders. Pass OpenOrderParams() for open orders (doc: get_orders(OpenOrderParams()))."""
         if params is None:
-            return await self._run(self._client.get_orders)
-        return await self._run(self._client.get_orders, params)
+            return cast(List[Any], await self._run(self._client.get_orders))
+        return cast(List[Any], await self._run(self._client.get_orders, params))
 
     async def get_order_book(self, token_id: str) -> "OrderBookSummary":
         """Get order book for a token id (read-only)."""
-        return await self._run(self._client.get_order_book, str(token_id).strip()) # type: ignore [arg-type]
+        return await self._run(cast(Callable[[str], "OrderBookSummary"], self._client.get_order_book), str(token_id).strip())
 
     async def get_order_books(self, params_list: List["BookParams"]) -> List["OrderBookSummary"]:
         """Get multiple order books (e.g. [BookParams(token_id=...)]). Read-only."""
@@ -146,14 +148,14 @@ class AsyncClobClient:
 
     async def get_midpoint(self, token_id: str) -> Optional[str]:
         """Get midpoint price for token (read-only)."""
-        midpoint = await self._run(self._client.get_midpoint, str(token_id).strip()) # type: ignore [arg-type]
+        midpoint = await self._run(cast(Callable[[str], Any], self._client.get_midpoint), str(token_id).strip())
         if isinstance(midpoint, dict):
             return cast(Dict[str, Any], midpoint).get("mid", None)
         return None
 
     async def get_price(self, token_id: str, side: Literal["BUY", "SELL"] = "BUY") -> Optional[str]:
         """Get price for token and side (read-only). side: 'BUY' or 'SELL'."""
-        response = await self._run(self._client.get_price, str(token_id).strip(), side) # type: ignore [arg-type]
+        response = await self._run(cast(Callable[[str, Literal["BUY", "SELL"]], Any], self._client.get_price), str(token_id).strip(), side)
         if isinstance(response, dict):
             return cast(Dict[str, Any], response).get("price", None)
         return None
@@ -168,14 +170,14 @@ class AsyncClobClient:
 
     async def post_order(self, signed_order: "SignedOrder", order_type: OrderType, post_only: bool = False) -> Optional[Dict[str, Any]]:
         """Post a signed order (e.g. OrderType.FOK, OrderType.FAK, OrderType.GTC)."""
-        response = await self._run(self._client.post_order, signed_order, order_type, post_only) # type: ignore [arg-type]
+        response = await self._run(cast(Callable[[SignedOrder, OrderType, bool], Any], self._client.post_order), signed_order, order_type, post_only)
         if isinstance(response, dict):
             return cast(Dict[str, Any], response)
         return None
 
     async def cancel(self, order_id: str) -> Optional[Dict[str, Any]]:
         """Cancel a single order by id."""
-        response = await self._run(self._client.cancel, order_id) # type: ignore [arg-type]
+        response = await self._run(cast(Callable[[str], Any], self._client.cancel), order_id)
         if isinstance(response, dict):
             return cast(Dict[str, Any], response)
         return None
@@ -205,6 +207,11 @@ class AsyncClobClient:
             return cast(Dict[str, Any], response)
         return None
 
+    async def get_fee_rate_bps(self, token_id: str) -> int:
+        """Get the fee rate in basis points for a token."""
+        response = await self._run(self._client.get_fee_rate_bps, str(token_id).strip())
+        return int(response or 0)
+
     # --- User trades (requires auth) ---
 
     async def get_last_trade_price(self, token_id: str) -> Optional[Dict[str, Any]]:
@@ -214,11 +221,11 @@ class AsyncClobClient:
             return cast(Dict[str, Any], response)
         return None
 
-    async def get_trades(self, params: Optional["TradeParams"] = None) -> List[Dict[str, Any]]:
+    async def get_trades(self, params: Optional["TradeParams"] = None) -> List["TradeSchema"]:
         """Get user trades (requires auth)."""
-        response = await self._run(self._client.get_trades, params)
+        response = cast(Any, await self._run(self._client.get_trades, params))
         if isinstance(response, list) and len(cast(List[Any], response)) > 0 and isinstance(response[0], dict):
-            return cast(List[Dict[str, Any]], response)
+            return cast(List["TradeSchema"], response)
         return []
 
     # --- Balance / allowance (requires auth) ---

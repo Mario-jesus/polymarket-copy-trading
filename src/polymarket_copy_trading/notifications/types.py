@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, Optional
 
 
 @dataclass(frozen=True)
@@ -13,13 +13,18 @@ class NotificationMessage:
 
     event_type: str
     message: str
-    title: str | None = None
-    payload: dict[str, Any] | None = None
+    title: Optional[str] = None
+    payload: Optional[dict[str, Any]] = None
 
 
 class NotificationStyler(Protocol):
     """Render a message into a formatted string for delivery."""
 
-    def render(self, message: NotificationMessage) -> str:
-        """Return a formatted message for the given message."""
+    def render(self, message: NotificationMessage, *, parse_html: bool = False) -> str:
+        """Return a formatted message for the given message.
+
+        Args:
+            message: Notification message to render.
+            parse_html: If True, output includes HTML. If False (default), plain text.
+        """
         ...

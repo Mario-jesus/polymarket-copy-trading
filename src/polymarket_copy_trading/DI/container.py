@@ -8,6 +8,9 @@ from dependency_injector import containers, providers
 from polymarket_copy_trading.config import Settings, get_settings
 from polymarket_copy_trading.events.bus import get_event_bus
 from polymarket_copy_trading.queue import InMemoryQueue, QueueMessage
+from polymarket_copy_trading.services.order_analysis.order_analysis_worker import (
+    PendingOrder,
+)
 from polymarket_copy_trading.clients.clob_client import AsyncClobClient
 from polymarket_copy_trading.clients.data_api import DataApiClient
 from polymarket_copy_trading.clients.http import AsyncHttpClient
@@ -24,6 +27,12 @@ from polymarket_copy_trading.persistence.repositories.in_memory import (
     InMemoryTrackingSessionRepository,
 )
 from polymarket_copy_trading.services.copy_trading import CopyTradingEngineService
+from polymarket_copy_trading.services.pnl import PnLService
+from polymarket_copy_trading.services.notifications import (
+    TradeConfirmedNotifier,
+    TradeFailedNotifier,
+)
+from polymarket_copy_trading.services.order_analysis import OrderAnalysisWorker
 from polymarket_copy_trading.services.order_execution.market_order_execution import MarketOrderExecutionService
 from polymarket_copy_trading.services.account_value import AccountValueService
 from polymarket_copy_trading.services.snapshot import SnapshotBuilderService
@@ -38,6 +47,11 @@ from polymarket_copy_trading.consumers.trade_consumer import TradeConsumer
 def _build_trade_queue(settings: Settings) -> InMemoryQueue[QueueMessage[DataApiTradeDTO]]:
     """Build the trade queue with size from settings."""
     return InMemoryQueue[QueueMessage[DataApiTradeDTO]](maxsize=settings.tracking.queue_size)
+
+
+def _build_order_analysis_queue(settings: Settings) -> InMemoryQueue[PendingOrder]:
+    """Build InMemoryQueue for OrderAnalysisWorker from settings."""
+    return InMemoryQueue[PendingOrder](maxsize=settings.order_analysis.queue_size)
 
 
 def _build_notification_notifiers(
@@ -119,6 +133,20 @@ class Container(containers.DeclarativeContainer):
         data_api=data_api_client,
     )
 
+    pnl_service = providers.Singleton(PnLService)
+
+    trade_confirmed_notifier = providers.Singleton(
+        TradeConfirmedNotifier,
+        notification_service=notification_service,
+        pnl_service=pnl_service,
+    )
+
+    trade_failed_notifier = providers.Singleton(
+        TradeFailedNotifier,
+        notification_service=notification_service,
+        event_bus=event_bus,
+    )
+
     copy_trading_engine_service = providers.Singleton(
         CopyTradingEngineService,
         tracking_repository=tracking_repository,
@@ -127,6 +155,19 @@ class Container(containers.DeclarativeContainer):
         data_api=data_api_client,
         market_order_execution=market_order_execution_service,
         settings=config,
+        event_bus=event_bus,
+    )
+
+    order_analysis_queue = providers.Singleton(_build_order_analysis_queue, config)
+
+    order_analysis_worker = providers.Singleton(
+        OrderAnalysisWorker,
+        clob_client=clob_client,
+        bot_position_repository=bot_position_repository,
+        event_bus=event_bus,
+        queue=order_analysis_queue,
+        settings=config,
+        trade_confirmed_notifier=trade_confirmed_notifier,
     )
 
     post_tracking_engine = providers.Singleton(

@@ -88,7 +88,7 @@ class TradeTracker:
             for t in latest
         ]
         if baseline:
-            self._seen_repo.add_batch(baseline)
+            await self._seen_repo.add_batch(baseline)
 
         wallet_masked = mask_address(wallet)
         self._logger.debug(
@@ -109,9 +109,9 @@ class TradeTracker:
                 for t in reversed(newest):
                     t_dict = cast(dict[str, Any], t)
                     k = trade_key(t_dict)
-                    if self._seen_repo.contains(wallet, k):
+                    if await self._seen_repo.contains(wallet, k):
                         continue
-                    self._seen_repo.add(SeenTrade.create(wallet, k))
+                    await self._seen_repo.add(SeenTrade.create(wallet, k))
                     trade = DataApiTradeDTO.from_response(t_dict)
                     self._logger.info(
                         "tracking_new_trade",

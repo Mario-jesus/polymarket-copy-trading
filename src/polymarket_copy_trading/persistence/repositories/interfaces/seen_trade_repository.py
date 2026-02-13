@@ -12,16 +12,16 @@ class ISeenTradeRepository(ABC):
     """Interface for persisting SeenTrade (deduplication of processed trades)."""
 
     @abstractmethod
-    def contains(self, wallet: str, trade_key: str) -> bool:
+    async def contains(self, wallet: str, trade_key: str) -> bool:
         """Return True if (wallet, trade_key) has been seen."""
         ...
 
     @abstractmethod
-    def add(self, seen_trade: SeenTrade) -> None:
+    async def add(self, seen_trade: SeenTrade) -> None:
         """Record that a trade has been seen. Idempotent (re-adding same key is no-op)."""
         ...
 
-    def add_batch(self, seen_trades: list[SeenTrade]) -> None:
+    async def add_batch(self, seen_trades: list[SeenTrade]) -> None:
         """Record multiple trades. Default impl calls add() for each."""
         for st in seen_trades:
-            self.add(st)
+            await self.add(st)

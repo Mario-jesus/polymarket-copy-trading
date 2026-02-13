@@ -23,15 +23,15 @@ class InMemoryTrackingSessionRepository(ITrackingSessionRepository):
         """Initialize an empty in-memory store."""
         self._store: dict[UUID, TrackingSession] = {}
 
-    def get(self, session_id: UUID) -> TrackingSession | None:
+    async def get(self, session_id: UUID) -> TrackingSession | None:
         """Return the session by id, or None if missing."""
         return self._store.get(session_id)
 
-    def save(self, session: TrackingSession) -> None:
+    async def save(self, session: TrackingSession) -> None:
         """Insert or update a session (by id)."""
         self._store[session.id] = session
 
-    def get_active_for_wallet(self, wallet: str) -> TrackingSession | None:
+    async def get_active_for_wallet(self, wallet: str) -> TrackingSession | None:
         """Return the active (RUNNING) session for the wallet, or None."""
         wallet = wallet.strip()
         for s in self._store.values():
@@ -39,7 +39,7 @@ class InMemoryTrackingSessionRepository(ITrackingSessionRepository):
                 return s
         return None
 
-    def list_by_wallet(self, wallet: str) -> list[TrackingSession]:
+    async def list_by_wallet(self, wallet: str) -> list[TrackingSession]:
         """Return all sessions for the wallet, ordered by started_at descending."""
         wallet = wallet.strip()
         sessions = [s for s in self._store.values() if s.wallet == wallet]

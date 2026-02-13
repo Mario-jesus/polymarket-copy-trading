@@ -22,7 +22,7 @@ class InMemoryTrackingRepository(ITrackingRepository):
         """Initialize an empty in-memory store."""
         self._store: dict[tuple[str, str], TrackingLedger] = {}
 
-    def get(
+    async def get(
         self,
         tracked_wallet: str,
         asset: str,
@@ -30,7 +30,7 @@ class InMemoryTrackingRepository(ITrackingRepository):
         """Return the ledger for (wallet, asset), or None if missing."""
         return self._store.get(_key(tracked_wallet, asset))
 
-    def get_or_create(
+    async def get_or_create(
         self,
         tracked_wallet: str,
         asset: str,
@@ -46,11 +46,11 @@ class InMemoryTrackingRepository(ITrackingRepository):
         self._store[k] = ledger
         return ledger
 
-    def save(self, ledger: TrackingLedger) -> None:
+    async def save(self, ledger: TrackingLedger) -> None:
         """Upsert a ledger (by tracked_wallet, asset)."""
         k = _key(ledger.tracked_wallet, ledger.asset)
         self._store[k] = ledger
 
-    def list_by_wallet(self, tracked_wallet: str) -> list[TrackingLedger]:
+    async def list_by_wallet(self, tracked_wallet: str) -> list[TrackingLedger]:
         """Return all ledgers for the given tracked wallet."""
         return [ledger for (w, _), ledger in self._store.items() if w == tracked_wallet.strip()]

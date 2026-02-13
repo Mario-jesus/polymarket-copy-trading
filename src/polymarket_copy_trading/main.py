@@ -60,9 +60,13 @@ async def run() -> None:
     tracking_session_repo = container.tracking_session_repository()
     tracker = container.trade_tracker()
     consumer = container.trade_consumer()
+    order_analysis_worker = container.order_analysis_worker()
+    trade_failed_notifier = container.trade_failed_notifier()
     trade_queue = container.trade_queue()
     notification_service = container.notification_service()
     await notification_service.initialize()
+    trade_failed_notifier.start()
+    await order_analysis_worker.start()
     shutdown_event = asyncio.Event()
     _setup_sigint(shutdown_event)
 
@@ -107,9 +111,9 @@ async def run() -> None:
 
         await _do_shutdown(logger)
     finally:
-        active = tracking_session_repo.get_active_for_wallet(target_wallet)
+        active = await tracking_session_repo.get_active_for_wallet(target_wallet)
         if active is not None:
-            tracking_session_repo.save(
+            await tracking_session_repo.save(
                 active.with_ended(datetime.now(timezone.utc))
             )
         track_task.cancel()
@@ -117,6 +121,8 @@ async def run() -> None:
             await track_task
         except asyncio.CancelledError:
             pass
+        await order_analysis_worker.stop()
+        trade_failed_notifier.stop()
         trade_queue.shutdown()
         await trade_queue.join()
         await consumer.stop()

@@ -98,10 +98,10 @@ class SnapshotBuilderService:
         ledgers: List[TrackingLedger] = []
         aggregated: Dict[str, float] = defaultdict(float)
 
-        session = self._session_repo.get_active_for_wallet(wallet)
+        session = await self._session_repo.get_active_for_wallet(wallet)
         if session is None:
             session = TrackingSession.create(wallet)
-            self._session_repo.save(session)
+            await self._session_repo.save(session)
         else:
             self._logger.info(
                 "snapshot_reusing_session",
@@ -131,16 +131,16 @@ class SnapshotBuilderService:
                 page_count += 1
 
             for asset, total_size in aggregated.items():
-                ledger = self._repo.get_or_create(wallet, asset)
+                ledger = await self._repo.get_or_create(wallet, asset)
                 updated = ledger.with_snapshot_t0(Decimal(str(total_size))).with_post_tracking(
                     Decimal("0")
                 )
-                self._repo.save(updated)
+                await self._repo.save(updated)
                 ledgers.append(updated)
 
             now = datetime.now(timezone.utc)
             session = session.with_snapshot_completed(now, source="positions")
-            self._session_repo.save(session)
+            await self._session_repo.save(session)
 
             self._logger.info(
                 "snapshot_t0_built",
@@ -158,7 +158,7 @@ class SnapshotBuilderService:
         except Exception as e:  # pragma: no cover
             now = datetime.now(timezone.utc)
             session = session.with_ended(now, status=SessionStatus.ERROR)
-            self._session_repo.save(session)
+            await self._session_repo.save(session)
 
             self._logger.exception(
                 "snapshot_t0_build_error",

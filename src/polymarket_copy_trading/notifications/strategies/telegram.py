@@ -107,7 +107,7 @@ class TelegramNotifier(BaseNotificationStrategy):
             self._logger.warning("telegram_not_running_cannot_send")
             return
 
-        formatted = self._styler.render(message)
+        formatted = self._styler.render(message, parse_html=True)
         await self._send_message(formatted)
 
     async def _send_message(self, message: str) -> None:
