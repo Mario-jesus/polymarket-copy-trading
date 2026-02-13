@@ -236,7 +236,6 @@ class TrackingSettings(BaseSettings):
     target_wallet: str = Field(
         default="",
         description="Wallet address to track (single wallet). Env: TRACKING__TARGET_WALLET (or TRACKING__TARGET_WALLETS).",
-        validation_alias="target_wallets",
     )
 
     @field_validator("target_wallet", mode="before")
