@@ -100,7 +100,6 @@ class Container(containers.DeclarativeContainer):
         settings=config,
         clob_client=clob_client,
         data_api=data_api_client,
-        event_bus=event_bus,
     )
 
     notification_styler = providers.Singleton(EventNotificationStyler)

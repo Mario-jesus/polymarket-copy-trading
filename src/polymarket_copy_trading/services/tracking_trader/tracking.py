@@ -113,7 +113,7 @@ class TradeTracker:
                         continue
                     await self._seen_repo.add(SeenTrade.create(wallet, k))
                     trade = DataApiTradeDTO.from_response(t_dict)
-                    self._logger.info(
+                    self._logger.debug(
                         "tracking_new_trade",
                         tracking_wallet_masked=wallet_masked,
                         trade_timestamp=trade.timestamp,
@@ -131,14 +131,14 @@ class TradeTracker:
                         )
                     )
         except asyncio.CancelledError:
-            self._logger.info(
+            self._logger.debug(
                 "tracking_stopped",
                 tracking_wallet_masked=wallet_masked,
                 tracking_stop_reason="cancelled",
             )
             raise
         except KeyboardInterrupt:
-            self._logger.info(
+            self._logger.debug(
                 "tracking_stopped",
                 tracking_wallet_masked=wallet_masked,
                 tracking_stop_reason="keyboard_interrupt",

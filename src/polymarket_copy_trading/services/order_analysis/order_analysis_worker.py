@@ -84,7 +84,7 @@ class OrderAnalysisWorker:
         """Subscribe to CopyTradeOrderPlacedEvent and start the worker loop."""
         self._event_bus.on(CopyTradeOrderPlacedEvent, self._on_order_placed)
         self._task = asyncio.create_task(self._worker_loop())
-        self._logger.info("order_analysis_worker_started")
+        self._logger.debug("order_analysis_worker_started")
 
     async def stop(self) -> None:
         """Unsubscribe, shutdown queue, cancel the worker task."""
@@ -98,7 +98,7 @@ class OrderAnalysisWorker:
                 pass
             self._task = None
         await self._queue.join()
-        self._logger.info("order_analysis_worker_stopped")
+        self._logger.debug("order_analysis_worker_stopped")
 
     def _on_order_placed(self, event: CopyTradeOrderPlacedEvent) -> None:
         """Handle CopyTradeOrderPlacedEvent: enqueue for analysis."""

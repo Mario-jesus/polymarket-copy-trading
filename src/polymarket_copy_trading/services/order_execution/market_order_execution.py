@@ -5,13 +5,12 @@ from __future__ import annotations
 
 import math
 import structlog
-from typing import TYPE_CHECKING, Any, List, Literal, Optional, Callable
+from typing import TYPE_CHECKING, Any, List, Optional, Callable
 
 from py_clob_client.clob_types import MarketOrderArgs, OrderType  # type: ignore[import-untyped]
 from py_clob_client.order_builder.constants import BUY, SELL  # type: ignore[import-untyped]
 from py_clob_client.exceptions import PolyApiException  # type: ignore[import-untyped]
 
-from polymarket_copy_trading.events.orders import OrderPlacedEvent
 from polymarket_copy_trading.utils import mask_address
 from polymarket_copy_trading.services.order_execution.dto import (
     OrderExecutionResult,
@@ -19,7 +18,6 @@ from polymarket_copy_trading.services.order_execution.dto import (
 )
 
 if TYPE_CHECKING:
-    from bubus import EventBus  # type: ignore[import-untyped]
     from polymarket_copy_trading.config import Settings
     from polymarket_copy_trading.clients import AsyncClobClient, DataApiClient
 
@@ -27,14 +25,11 @@ if TYPE_CHECKING:
 class MarketOrderExecutionService:
     """Market order execution service."""
 
-    _event_bus: Optional["EventBus"]
-
     def __init__(
         self,
         settings: "Settings",
         clob_client: "AsyncClobClient",
         data_api: "DataApiClient",
-        event_bus: Optional[Any] = None,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
         logger_name: Optional[str] = None,
@@ -42,7 +37,6 @@ class MarketOrderExecutionService:
         self._settings = settings
         self._client = clob_client
         self._data_api = data_api
-        self._event_bus = event_bus
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
     async def place_buy_usdc(
@@ -103,7 +97,6 @@ class MarketOrderExecutionService:
                 error_type=type(e).__name__,
                 error_message=str(e),
             )
-        await self._dispatch_order_placed(token_id, "BUY", amount, "usdc", result)
         return result
 
     async def place_buy_shares(
@@ -138,12 +131,10 @@ class MarketOrderExecutionService:
                     token_id=token_id,
                     amount_shares=amount,
                 )
-                await self._dispatch_order_placed(token_id, "BUY", amount, "shares", result)
                 return result
             price = float(price_str)
             if price <= 0:
                 result.error = f"Invalid BUY price: {price_str}"
-                await self._dispatch_order_placed(token_id, "BUY", amount, "shares", result)
                 return result
             amount_usdc = self.__ceil_to_cents(price * amount)
 
@@ -192,7 +183,6 @@ class MarketOrderExecutionService:
                 error_type=type(e).__name__,
                 error_message=str(e),
             )
-        await self._dispatch_order_placed(token_id, "BUY", amount, "shares", result)
         return result
 
     async def place_buy_minimum(
@@ -240,17 +230,14 @@ class MarketOrderExecutionService:
                     token_id=token_id,
                     amount_usdc=amount,
                 )
-                await self._dispatch_order_placed(token_id, "SELL", amount, "usdc", result)
                 return result
             price = float(price_str)
             if price <= 0:
                 result.error = f"Invalid SELL price: {price_str}"
-                await self._dispatch_order_placed(token_id, "SELL", amount, "usdc", result)
                 return result
             amount_shares = round(amount / price, 4)
             if amount_shares <= 0:
                 result.error = f"Computed shares <= 0 (amount_usdc={amount}, price={price})"
-                await self._dispatch_order_placed(token_id, "SELL", amount, "usdc", result)
                 return result
 
             signed = await self._client.create_market_order(
@@ -298,7 +285,6 @@ class MarketOrderExecutionService:
                 error_type=type(e).__name__,
                 error_message=str(e),
             )
-        await self._dispatch_order_placed(token_id, "SELL", amount, "usdc", result)
         return result
 
     async def place_sell_shares(
@@ -359,7 +345,6 @@ class MarketOrderExecutionService:
                 error_type=type(e).__name__,
                 error_message=str(e),
             )
-        await self._dispatch_order_placed(token_id, "SELL", amount, "shares", result)
         return result
 
     async def close_full_position(
@@ -524,35 +509,6 @@ class MarketOrderExecutionService:
                 error_message=str(e),
             )
         return result
-
-    @classmethod
-    async def _dispatch_order_placed(
-        cls,
-        token_id: str,
-        side: Literal["BUY", "SELL"],
-        amount: float,
-        amount_kind: Literal["usdc", "shares"],
-        result: "OrderExecutionResult[OrderResponse]",
-    ) -> None:
-        """Emit OrderPlacedEvent on the event bus and wait until processing completes."""
-        if cls._event_bus is None:
-            return
-        order_id = result.response.order_id if result.response else None
-        status = result.response.status if result.response else None
-        response_summary = result.response.to_dict() if result.response else None
-        event = OrderPlacedEvent(
-            token_id=token_id.strip(),
-            side=side,
-            amount=amount,
-            amount_kind=amount_kind,
-            success=result.success,
-            order_id=order_id,
-            error_msg=result.error,
-            status=status,
-            response_summary=response_summary,
-        )
-        dispatched = cls._event_bus.dispatch(event)
-        await dispatched
 
     @staticmethod
     def __ceil_to_cents(value: float) -> float:
