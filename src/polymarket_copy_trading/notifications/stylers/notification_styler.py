@@ -199,7 +199,7 @@ class EventNotificationStyler(NotificationStyler):
             f"🚀 <b>Status</b>\n"
             f"{'─'*12}\n"
             f"{message.message}\n\n"
-            f"👛 <b>Target Wallets:</b> {wallets_str}\n\n"
+            f"👛 <b>Target Wallet:</b> {wallets_str}\n\n"
             f"⏰ <b>Time:</b> {time_str}"
         )
 

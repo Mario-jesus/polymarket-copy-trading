@@ -16,7 +16,10 @@ import asyncio
 import structlog
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, cast
 
+from py_clob_client.clob_types import SignedOrder, OrderBookSummary, OrderType # type: ignore[import-untyped]
+
 from polymarket_copy_trading.config import Settings
+from polymarket_copy_trading.clients.clob_client.schema import TradeSchema
 
 if TYPE_CHECKING:
     from py_clob_client.client import ClobClient  # type: ignore[import-untyped]
@@ -24,17 +27,12 @@ if TYPE_CHECKING:
         ApiCreds,
         OpenOrderParams,
         BookParams,
-        OrderBookSummary,
         MarketOrderArgs,
         PartialCreateOrderOptions,
-        SignedOrder,
         OrderArgs,
-        OrderType,
         TradeParams,
         BalanceAllowanceParams,
     )
-
-    from polymarket_copy_trading.clients.clob_client.schema import TradeSchema
 
 
 def _build_sync_client(settings: Settings) -> "ClobClient":
@@ -140,7 +138,7 @@ class AsyncClobClient:
 
     async def get_order_book(self, token_id: str) -> "OrderBookSummary":
         """Get order book for a token id (read-only)."""
-        return await self._run(cast(Callable[[str], "OrderBookSummary"], self._client.get_order_book), str(token_id).strip())
+        return await self._run(cast(Callable[[str], OrderBookSummary], self._client.get_order_book), str(token_id).strip())
 
     async def get_order_books(self, params_list: List["BookParams"]) -> List["OrderBookSummary"]:
         """Get multiple order books (e.g. [BookParams(token_id=...)]). Read-only."""
@@ -225,7 +223,7 @@ class AsyncClobClient:
         """Get user trades (requires auth)."""
         response = cast(Any, await self._run(self._client.get_trades, params))
         if isinstance(response, list) and len(cast(List[Any], response)) > 0 and isinstance(response[0], dict):
-            return cast(List["TradeSchema"], response)
+            return cast(List[TradeSchema], response)
         return []
 
     # --- Balance / allowance (requires auth) ---

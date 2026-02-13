@@ -98,6 +98,11 @@ class SnapshotBuilderService:
         ledgers: List[TrackingLedger] = []
         aggregated: Dict[str, float] = defaultdict(float)
 
+        self._logger.debug(
+            "snapshot_t0_started",
+            tracking_wallet_masked=mask_address(wallet),
+        )
+
         session = await self._session_repo.get_active_for_wallet(wallet)
         if session is None:
             session = TrackingSession.create(wallet)
@@ -113,22 +118,43 @@ class SnapshotBuilderService:
             offset = 0
             limit = self.DEFAULT_LIMIT
             page_count = 0
+            raw_positions_total = 0
+            invalid_positions = 0
             while page_count < self.MAX_PAGES:
                 chunk = await self._data_api.get_positions(
                     user=wallet,
                     limit=limit,
                     offset=offset,
                 )
+                raw_positions_total += len(chunk)
                 for p in chunk:
                     parsed = _parse_position(p)
                     if parsed is None:
+                        invalid_positions += 1
                         continue
                     asset, size = parsed
                     aggregated[asset] += size
+                self._logger.debug(
+                    "snapshot_t0_page_fetched",
+                    page=page_count + 1,
+                    chunk_size=len(chunk),
+                    offset=offset,
+                    aggregated_assets_so_far=len(aggregated),
+                )
                 if len(chunk) < limit:
                     break
                 offset += limit
                 page_count += 1
+
+            positions_added = len(aggregated)
+            self._logger.info(
+                "snapshot_t0_positions_aggregated",
+                tracking_wallet_masked=mask_address(wallet),
+                positions_added=positions_added,
+                raw_positions_from_api=raw_positions_total,
+                invalid_positions_skipped=invalid_positions,
+                pages_fetched=page_count + 1,
+            )
 
             for asset, total_size in aggregated.items():
                 ledger = await self._repo.get_or_create(wallet, asset)
@@ -145,7 +171,7 @@ class SnapshotBuilderService:
             self._logger.info(
                 "snapshot_t0_built",
                 tracking_wallet_masked=mask_address(wallet),
-                ledgers_count=len(ledgers),
+                positions_added=len(ledgers),
                 session_id=str(session.id),
             )
             return SnapshotResult(
