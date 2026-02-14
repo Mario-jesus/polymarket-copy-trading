@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 class GammaApiClient:
     """Client for Polymarket Gamma API (e.g. /markets by condition_ids)."""
 
+    DEFAULT_BATCH_SIZE = 50
+
     def __init__(
         self,
         http_client: "AsyncHttpClient",
@@ -28,8 +30,7 @@ class GammaApiClient:
 
         Args:
             http_client: Async HTTP client (e.g. AsyncHttpClient).
-            settings: Application settings (uses settings.api.gamma_host,
-                settings.tracking.gamma_batch_size).
+            settings: Application settings (uses settings.api.gamma_host).
             get_logger: Logger factory (injected) with default of structlog.get_logger.
             logger_name: Optional logger name (defaults to class name).
         """
@@ -46,7 +47,7 @@ class GammaApiClient:
     ) -> Dict[str, Dict[str, Any]]:
         """Resolve condition_ids to market info (market_id, slug, title).
 
-        Batches requests using settings.tracking.gamma_batch_size.
+        Batches requests using DEFAULT_BATCH_SIZE.
         Tries params condition_ids first, then condition_ids[] if the
         response is empty.
 
@@ -66,7 +67,7 @@ class GammaApiClient:
         if not uniq:
             return {}
 
-        batch_size = max(1, self._settings.tracking.gamma_batch_size)
+        batch_size = self.DEFAULT_BATCH_SIZE
         out: Dict[str, Dict[str, Any]] = {}
 
         for i in range(0, len(uniq), batch_size):
