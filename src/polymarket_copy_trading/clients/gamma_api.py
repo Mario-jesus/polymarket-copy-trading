@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 class GammaApiClient:
     """Client for Polymarket Gamma API (e.g. /markets by condition_ids)."""
 
-    DEFAULT_BATCH_SIZE = 50
-
     def __init__(
         self,
         http_client: "AsyncHttpClient",
@@ -47,7 +45,7 @@ class GammaApiClient:
     ) -> Dict[str, Dict[str, Any]]:
         """Resolve condition_ids to market info (market_id, slug, title).
 
-        Batches requests using DEFAULT_BATCH_SIZE.
+        Batches requests using settings.api.gamma_batch_size.
         Tries params condition_ids first, then condition_ids[] if the
         response is empty.
 
@@ -67,7 +65,7 @@ class GammaApiClient:
         if not uniq:
             return {}
 
-        batch_size = self.DEFAULT_BATCH_SIZE
+        batch_size = max(1, self._settings.api.gamma_batch_size)
         out: Dict[str, Dict[str, Any]] = {}
 
         for i in range(0, len(uniq), batch_size):

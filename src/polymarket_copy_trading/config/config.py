@@ -82,6 +82,12 @@ class ApiSettings(BaseSettings):
         default="https://gamma-api.polymarket.com",
         description="Polymarket Gamma API base URL.",
     )
+    gamma_batch_size: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Batch size for Gamma API requests (condition_ids per request). Env: API__GAMMA_BATCH_SIZE.",
+    )
     timeout_seconds: float = Field(
         default=15.0,
         ge=1.0,
