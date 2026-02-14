@@ -34,7 +34,58 @@ source .venv/bin/activate   # Linux/macOS
 pip install -r requirements.txt
 ```
 
-3. Configure environment variables (see next section).
+3. Configure environment variables (see the `Configuration` section below).
+
+## Development quality checks (pre-commit)
+
+This project uses `pre-commit` to run formatting, linting, type checks, and test gates.
+
+### One-time setup
+
+Install development dependencies and git hooks:
+
+```bash
+pipenv install --dev
+pipenv run pre-commit install --hook-type pre-commit --hook-type pre-push
+```
+
+### What runs automatically
+
+- **On commit (`pre-commit`)**:
+  - `ruff check --fix` (lint + safe auto-fixes)
+  - `ruff format`
+  - `mypy src`
+  - `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-json`, `check-toml`, `check-added-large-files`
+- **On push (`pre-push`)**:
+  - `pytest -v --cov=src`
+
+### Run checks manually
+
+Run all configured hooks for the full repository:
+
+```bash
+pipenv run pre-commit run --all-files
+```
+
+Run only push-stage hooks locally:
+
+```bash
+pipenv run pre-commit run --hook-stage pre-push
+```
+
+Run individual tools directly:
+
+```bash
+pipenv run ruff check src tests
+pipenv run ruff format src tests
+pipenv run mypy src
+pipenv run pytest -v --cov=src
+```
+
+### Notes
+
+- If a hook reformats files (for example `ruff format`), the commit is stopped so you can review changes. Stage files again and re-run commit.
+- `pre-commit` validates staged content on commit; unstaged changes are temporarily stashed and restored automatically.
 
 ## Configuration
 
@@ -84,8 +135,6 @@ TRACKING__TARGET_WALLET=0x...
 # Optional
 STRATEGY__FIXED_POSITION_AMOUNT_USDC=10
 ```
-
-> **Note**: If you use `TRACKING__TARGET_WALLETS` with multiple comma-separated wallets, only the first one is used.
 
 ## Usage
 
