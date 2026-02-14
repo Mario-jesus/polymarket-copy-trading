@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """In-memory seen trade repository (keyed by (wallet, trade_key))."""
 
 from __future__ import annotations

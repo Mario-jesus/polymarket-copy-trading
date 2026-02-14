@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 """Configuration subpackage."""
 
 from polymarket_copy_trading.config.config import (
     ApiSettings,
     AppSettings,
+    ConsoleNotificationSettings,
     LoggingSettings,
     OrderAnalysisSettings,
     OrderExecutionSettings,
@@ -11,7 +11,6 @@ from polymarket_copy_trading.config.config import (
     Settings,
     StrategySettings,
     TelegramNotificationSettings,
-    ConsoleNotificationSettings,
     TrackingSettings,
     get_settings,
 )

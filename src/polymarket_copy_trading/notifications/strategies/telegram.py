@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """Telegram notification strategy (async)."""
 
 from __future__ import annotations
 
 import asyncio
 import time
-import structlog
-from typing import Any, Callable, Optional, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
+import structlog
 from telegram import Bot
 from telegram.error import (
     BadRequest,
@@ -19,8 +19,10 @@ from telegram.error import (
 )
 from telegram.request import HTTPXRequest
 
+from polymarket_copy_trading.notifications.strategies.base import (
+    BaseNotificationStrategy,
+)
 from polymarket_copy_trading.notifications.types import NotificationMessage
-from polymarket_copy_trading.notifications.strategies.base import BaseNotificationStrategy
 
 if TYPE_CHECKING:
     from polymarket_copy_trading.config.config import Settings
@@ -32,15 +34,15 @@ class TelegramNotifier(BaseNotificationStrategy):
 
     def __init__(
         self,
-        settings: "Settings",
-        styler: "NotificationStyler",
+        settings: Settings,
+        styler: NotificationStyler,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         super().__init__(settings)
         self._logger = get_logger(logger_name or self.__class__.__name__)
-        self._styler: "NotificationStyler" = styler
+        self._styler: NotificationStyler = styler
 
         cfg = self.settings.telegram
         token = cfg.api_key
@@ -60,7 +62,7 @@ class TelegramNotifier(BaseNotificationStrategy):
         self.write_timeout = cfg.write_timeout
         self.pool_timeout = cfg.pool_timeout
 
-        self._bot: Optional[Bot] = None
+        self._bot: Bot | None = None
         self._running = False
         self._message_timestamps: list[float] = []
 

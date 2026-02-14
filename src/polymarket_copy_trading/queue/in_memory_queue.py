@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 """In-memory async queue implementation."""
 
 from __future__ import annotations
 
 import asyncio
 
-from polymarket_copy_trading.queue.base import IAsyncQueue
 from polymarket_copy_trading.exceptions import (
     QueueEmpty,
     QueueFull,
     QueueShutdown,
 )
+from polymarket_copy_trading.queue.base import IAsyncQueue
 
 
 class InMemoryQueue[T](IAsyncQueue[T]):

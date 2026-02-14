@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Notification subsystem."""
 
 from polymarket_copy_trading.notifications.notification_manager import (
@@ -9,7 +8,10 @@ from polymarket_copy_trading.notifications.strategies import (
     ConsoleNotifier,
     TelegramNotifier,
 )
-from polymarket_copy_trading.notifications.types import NotificationMessage, NotificationStyler
+from polymarket_copy_trading.notifications.types import (
+    NotificationMessage,
+    NotificationStyler,
+)
 
 __all__ = [
     "BaseNotificationStrategy",

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Data API response types (OpenAPI schema alignment)."""
 
 from __future__ import annotations

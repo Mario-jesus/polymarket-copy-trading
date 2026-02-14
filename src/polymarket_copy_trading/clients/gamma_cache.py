@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
 """In-memory cache for Gamma API market lookups (condition_id -> market info)."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import structlog
-from typing import Any, Callable, Dict, List, Optional
 from cachetools import LRUCache
 from structlog.contextvars import bound_contextvars
 
@@ -23,7 +24,7 @@ class GammaCache:
         *,
         maxsize: int = 2048,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the cache.
 
@@ -34,10 +35,10 @@ class GammaCache:
             logger_name: Optional logger name (defaults to class name).
         """
         self._client = gamma_client
-        self._cache: LRUCache[str, Dict[str, Any]] = LRUCache(maxsize=max(1, maxsize))
+        self._cache: LRUCache[str, dict[str, Any]] = LRUCache(maxsize=max(1, maxsize))
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
-    async def resolve(self, condition_ids: List[str]) -> None:
+    async def resolve(self, condition_ids: list[str]) -> None:
         """Fetch and cache market info for condition_ids that are not yet cached.
 
         Args:
@@ -58,7 +59,7 @@ class GammaCache:
                 gamma_cache_resolved_count=len(result),
             )
 
-    def get(self, condition_id: str) -> Dict[str, Any]:
+    def get(self, condition_id: str) -> dict[str, Any]:
         """Return cached market info for a condition_id, or empty dict.
 
         Args:

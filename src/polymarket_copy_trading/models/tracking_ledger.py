@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Tracking ledger: snapshot t0 and post-tracking shares per (tracked_wallet, asset).
 
 Identity is (tracked_wallet, asset) where asset is Polymarket positionId (token_id).
@@ -9,9 +8,8 @@ and to evaluate open/close thresholds. See docs on Prediction Markets Copy Tradi
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID, uuid4
 
 
@@ -38,7 +36,7 @@ class TrackingLedger:
     created_at: datetime
     updated_at: datetime
 
-    close_stage_ref_post_tracking_shares: Optional[Decimal] = None
+    close_stage_ref_post_tracking_shares: Decimal | None = None
     """Baseline ref_pt for progressive close: post_tracking_shares at start of current close stage. Updated when bot closes positions."""
 
     def with_snapshot_t0(self, new_snapshot: Decimal) -> TrackingLedger:
@@ -51,7 +49,7 @@ class TrackingLedger:
             post_tracking_shares=self.post_tracking_shares,
             close_stage_ref_post_tracking_shares=self.close_stage_ref_post_tracking_shares,
             created_at=self.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
 
     def with_post_tracking(self, new_post_tracking: Decimal) -> TrackingLedger:
@@ -64,10 +62,10 @@ class TrackingLedger:
             post_tracking_shares=new_post_tracking,
             close_stage_ref_post_tracking_shares=self.close_stage_ref_post_tracking_shares,
             created_at=self.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
 
-    def with_close_stage_ref(self, new_ref: Optional[Decimal]) -> TrackingLedger:
+    def with_close_stage_ref(self, new_ref: Decimal | None) -> TrackingLedger:
         """Return a copy with updated close_stage_ref_post_tracking_shares (ref_pt for progressive close)."""
         return TrackingLedger(
             id=self.id,
@@ -77,7 +75,7 @@ class TrackingLedger:
             post_tracking_shares=self.post_tracking_shares,
             close_stage_ref_post_tracking_shares=new_ref,
             created_at=self.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
 
     def add_post_tracking_delta(self, delta: Decimal) -> TrackingLedger:
@@ -91,14 +89,14 @@ class TrackingLedger:
         asset: str,
         snapshot_t0_shares: Decimal = Decimal("0"),
         post_tracking_shares: Decimal = Decimal("0"),
-        close_stage_ref_post_tracking_shares: Optional[Decimal] = None,
+        close_stage_ref_post_tracking_shares: Decimal | None = None,
         *,
         id: UUID | None = None,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
     ) -> TrackingLedger:
         """Create a new ledger entry (e.g. for a new position/token or at t0)."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return cls(
             id=id or uuid4(),
             tracked_wallet=tracked_wallet,

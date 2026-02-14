@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*-
 """Orchestrator: runs TradeTracker for multiple wallets until shutdown (signal or CancelledError)."""
 
 from __future__ import annotations
 
 import asyncio
-import structlog
 from collections.abc import Callable
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+import structlog
 
 from polymarket_copy_trading.config import Settings
 from polymarket_copy_trading.services.tracking_trader import TradeTracker
@@ -24,9 +24,9 @@ class TrackingRunner:
         tracker: TradeTracker,
         settings: Settings,
         *,
-        snapshot_builder: Optional["SnapshotBuilderService"] = None,
+        snapshot_builder: SnapshotBuilderService | None = None,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the runner.
 
@@ -73,11 +73,7 @@ class TrackingRunner:
                     )
         track_tasks = [
             asyncio.create_task(
-                self._tracker.track(
-                    wallet,
-                    poll_seconds=tr.poll_seconds,
-                    limit=tr.trades_limit
-                ),
+                self._tracker.track(wallet, poll_seconds=tr.poll_seconds, limit=tr.trades_limit),
             )
             for wallet in wallets
         ]

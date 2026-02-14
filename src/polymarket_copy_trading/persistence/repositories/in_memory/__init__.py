@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """In-memory repository implementations."""
 
 from polymarket_copy_trading.persistence.repositories.in_memory.bot_position_repository import (

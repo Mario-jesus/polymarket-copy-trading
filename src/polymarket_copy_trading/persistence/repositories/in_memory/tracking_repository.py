@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
 """In-memory tracking repository (keyed by tracked_wallet, asset)."""
 
 from __future__ import annotations
-
-from typing import Optional
 
 from polymarket_copy_trading.models.tracking_ledger import TrackingLedger
 from polymarket_copy_trading.persistence.repositories.interfaces.tracking_repository import (
@@ -26,7 +23,7 @@ class InMemoryTrackingRepository(ITrackingRepository):
         self,
         tracked_wallet: str,
         asset: str,
-    ) -> Optional[TrackingLedger]:
+    ) -> TrackingLedger | None:
         """Return the ledger for (wallet, asset), or None if missing."""
         return self._store.get(_key(tracked_wallet, asset))
 

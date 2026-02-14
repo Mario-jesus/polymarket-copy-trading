@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
 """Polymarket Gamma API client (markets by condition_id)."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
+
 import structlog
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, cast
 from structlog.contextvars import bound_contextvars
 
 from polymarket_copy_trading.config import Settings
@@ -18,11 +19,11 @@ class GammaApiClient:
 
     def __init__(
         self,
-        http_client: "AsyncHttpClient",
+        http_client: AsyncHttpClient,
         settings: Settings,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the client.
 
@@ -41,8 +42,8 @@ class GammaApiClient:
 
     async def get_markets_by_condition_ids(
         self,
-        condition_ids: List[str],
-    ) -> Dict[str, Dict[str, Any]]:
+        condition_ids: list[str],
+    ) -> dict[str, dict[str, Any]]:
         """Resolve condition_ids to market info (market_id, slug, title).
 
         Batches requests using settings.api.gamma_batch_size.
@@ -66,7 +67,7 @@ class GammaApiClient:
             return {}
 
         batch_size = max(1, self._settings.api.gamma_batch_size)
-        out: Dict[str, Dict[str, Any]] = {}
+        out: dict[str, dict[str, Any]] = {}
 
         for i in range(0, len(uniq), batch_size):
             batch = uniq[i : i + batch_size]
@@ -88,10 +89,13 @@ class GammaApiClient:
                     arr = []
 
             for m in self.__as_list_of_dicts(arr):
-                cid = m.get("condition_id") or m.get("conditionId")
-                if not cid or not self.__is_condition_id(cid):
+                cid_raw = m.get("condition_id") or m.get("conditionId")
+                if not isinstance(cid_raw, str):
                     continue
-                out[str(cid)] = {
+                cid = cid_raw.strip()
+                if not self.__is_condition_id(cid):
+                    continue
+                out[cid] = {
                     "market_id": m.get("id"),
                     "slug": m.get("slug") or "",
                     "title": m.get("title") or m.get("question") or "",
@@ -99,9 +103,9 @@ class GammaApiClient:
 
         return out
 
-    async def _fetch_one_batch(self, condition_ids: List[str]) -> List[Dict[str, Any]]:
+    async def _fetch_one_batch(self, condition_ids: list[str]) -> list[dict[str, Any]]:
         url = f"{self._base_url()}/markets"
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "condition_ids": condition_ids,
             "limit": max(1, len(condition_ids)),
             "offset": 0,
@@ -114,7 +118,7 @@ class GammaApiClient:
             "gamma_api_batch_empty",
             gamma_api_fallback_params="condition_ids[]",
         )
-        params2: Dict[str, Any] = {
+        params2: dict[str, Any] = {
             "condition_ids[]": condition_ids,
             "limit": max(1, len(condition_ids)),
             "offset": 0,
@@ -130,11 +134,11 @@ class GammaApiClient:
         return s.startswith("0x") and len(s) == 66
 
     @staticmethod
-    def __as_list_of_dicts(x: Any) -> List[Dict[str, Any]]:
+    def __as_list_of_dicts(x: Any) -> list[dict[str, Any]]:
         if not isinstance(x, list):
             return []
-        result: List[Dict[str, Any]] = []
-        for v in cast(List[Any], x):
+        result: list[dict[str, Any]] = []
+        for v in cast(list[Any], x):
             if isinstance(v, dict):
-                result.append(cast(Dict[str, Any], v))
+                result.append(cast(dict[str, Any], v))
         return result

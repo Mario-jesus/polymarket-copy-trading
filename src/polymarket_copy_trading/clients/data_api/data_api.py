@@ -1,13 +1,18 @@
-# -*- coding: utf-8 -*-
 """Polymarket Data API client (public endpoints)."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Literal, cast
+
 import structlog
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, cast
 from structlog.contextvars import bound_contextvars
 
-from polymarket_copy_trading.clients.data_api.schema import PositionSchema, TradeSchema, ValueSchema
+from polymarket_copy_trading.clients.data_api.schema import (
+    PositionSchema,
+    TradeSchema,
+    ValueSchema,
+)
 from polymarket_copy_trading.config import Settings
 from polymarket_copy_trading.utils.validation import mask_address
 
@@ -15,8 +20,15 @@ if TYPE_CHECKING:
     from polymarket_copy_trading.clients.http import AsyncHttpClient
 
 PositionSortBy = Literal[
-    "CURRENT", "INITIAL", "TOKENS", "CASHPNL", "PERCENTPNL",
-    "TITLE", "RESOLVING", "PRICE", "AVGPRICE",
+    "CURRENT",
+    "INITIAL",
+    "TOKENS",
+    "CASHPNL",
+    "PERCENTPNL",
+    "TITLE",
+    "RESOLVING",
+    "PRICE",
+    "AVGPRICE",
 ]
 PositionSortDirection = Literal["ASC", "DESC"]
 
@@ -26,11 +38,11 @@ class DataApiClient:
 
     def __init__(
         self,
-        http_client: "AsyncHttpClient",
+        http_client: AsyncHttpClient,
         settings: Settings,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the client.
 
@@ -53,7 +65,7 @@ class DataApiClient:
         *,
         limit: int = 20,
         offset: int = 0,
-    ) -> List[TradeSchema]:
+    ) -> list[TradeSchema]:
         """Fetch latest trades for a user (most recent first).
 
         Args:
@@ -71,7 +83,7 @@ class DataApiClient:
             data_api_offset=offset,
         ):
             url = f"{self._base_url()}/trades"
-            params: Dict[str, Any] = {
+            params: dict[str, Any] = {
                 "user": user,
                 "limit": limit,
                 "offset": offset,
@@ -83,7 +95,7 @@ class DataApiClient:
                     data_api_response_type=type(data).__name__,
                 )
                 return []
-            result: List[TradeSchema] = []
+            result: list[TradeSchema] = []
             for x in cast(list[Any], data):
                 if isinstance(x, dict):
                     result.append(cast(TradeSchema, x))
@@ -93,8 +105,8 @@ class DataApiClient:
         self,
         user: str,
         *,
-        market: Optional[List[str]] = None,
-        event_id: Optional[List[int]] = None,
+        market: list[str] | None = None,
+        event_id: list[int] | None = None,
         size_threshold: float = 1.0,
         redeemable: bool = False,
         mergeable: bool = False,
@@ -102,7 +114,7 @@ class DataApiClient:
         offset: int = 0,
         sort_by: PositionSortBy = "TOKENS",
         sort_direction: PositionSortDirection = "DESC",
-        title: Optional[str] = None,
+        title: str | None = None,
     ) -> list[PositionSchema]:
         """Get current positions for a user.
 
@@ -133,7 +145,7 @@ class DataApiClient:
             )
             event_id = None
         # aiohttp/yarl only accept str, int, float in query params (no bool)
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "user": user,
             "sizeThreshold": size_threshold,
             "redeemable": str(redeemable).lower(),
@@ -164,7 +176,7 @@ class DataApiClient:
                     data_api_response_type=type(data).__name__,
                 )
                 return []
-            result: List[PositionSchema] = []
+            result: list[PositionSchema] = []
             for x in cast(list[Any], data):
                 if isinstance(x, dict):
                     result.append(cast(PositionSchema, x))
@@ -174,8 +186,8 @@ class DataApiClient:
         self,
         user: str,
         *,
-        market: Optional[List[str]] = None,
-    ) -> List[ValueSchema]:
+        market: list[str] | None = None,
+    ) -> list[ValueSchema]:
         """Get value of a user's positions from the Data API (GET /value).
 
         Returns mark-to-market value of open positions. Does not include on-chain
@@ -190,7 +202,7 @@ class DataApiClient:
         Returns:
             List of Value items from the Data API (user, value).
         """
-        params: Dict[str, Any] = {"user": user}
+        params: dict[str, Any] = {"user": user}
         if market:
             params["market"] = ",".join(m.strip() for m in market)
 
@@ -206,7 +218,7 @@ class DataApiClient:
                     data_api_response_type=type(data).__name__,
                 )
                 return []
-            result: List[ValueSchema] = []
+            result: list[ValueSchema] = []
             for x in cast(list[Any], data):
                 if isinstance(x, dict):
                     result.append(cast(ValueSchema, x))

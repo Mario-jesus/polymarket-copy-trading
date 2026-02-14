@@ -1,27 +1,28 @@
-# -*- coding: utf-8 -*-
 """Trade tracking service (polling)."""
 
 from __future__ import annotations
 
 import asyncio
-import structlog
-from typing import TYPE_CHECKING, Any, Optional, cast
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
+
+import structlog
+
 from polymarket_copy_trading.models.seen_trade import SeenTrade
 from polymarket_copy_trading.queue import QueueMessage
-from polymarket_copy_trading.utils.dedupe import trade_key
-from polymarket_copy_trading.utils.validation import is_hex_address, mask_address
 from polymarket_copy_trading.services.tracking_trader.trade_dto import (
     DataApiTradeDTO,
 )
+from polymarket_copy_trading.utils.dedupe import trade_key
+from polymarket_copy_trading.utils.validation import is_hex_address, mask_address
 
 if TYPE_CHECKING:
-    from polymarket_copy_trading.config import Settings
     from polymarket_copy_trading.clients.data_api import DataApiClient
-    from polymarket_copy_trading.queue import IAsyncQueue
+    from polymarket_copy_trading.config import Settings
     from polymarket_copy_trading.persistence.repositories.interfaces.seen_trade_repository import (
         ISeenTradeRepository,
     )
+    from polymarket_copy_trading.queue import IAsyncQueue
 
 
 class TradeTracker:
@@ -29,13 +30,13 @@ class TradeTracker:
 
     def __init__(
         self,
-        settings: "Settings",
-        data_api: "DataApiClient",
-        queue: "IAsyncQueue[QueueMessage[DataApiTradeDTO]]",
-        seen_trade_repository: "ISeenTradeRepository",
+        settings: Settings,
+        data_api: DataApiClient,
+        queue: IAsyncQueue[QueueMessage[DataApiTradeDTO]],
+        seen_trade_repository: ISeenTradeRepository,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the tracker.
 
@@ -57,8 +58,8 @@ class TradeTracker:
         self,
         wallet: str,
         *,
-        poll_seconds: Optional[float] = None,
-        limit: Optional[int] = None,
+        poll_seconds: float | None = None,
+        limit: int | None = None,
     ) -> None:
         """Poll for new trades and push them to the queue.
 
@@ -83,10 +84,7 @@ class TradeTracker:
 
         # Baseline fetch: mark all current trades as seen
         latest = await self._data_api.get_trades(wallet, limit=limit, offset=0)
-        baseline = [
-            SeenTrade.create(wallet, trade_key(cast(dict[str, Any], t)))
-            for t in latest
-        ]
+        baseline = [SeenTrade.create(wallet, trade_key(cast(dict[str, Any], t))) for t in latest]
         if baseline:
             await self._seen_repo.add_batch(baseline)
 

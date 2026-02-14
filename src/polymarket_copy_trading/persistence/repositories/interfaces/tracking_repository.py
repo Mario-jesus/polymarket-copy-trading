@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 """Abstract interface for tracking ledger storage (in-memory, DB, etc.)."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Optional
 
 from polymarket_copy_trading.models.tracking_ledger import TrackingLedger
 
@@ -18,7 +16,7 @@ class ITrackingRepository(ABC):
         self,
         tracked_wallet: str,
         asset: str,
-    ) -> Optional[TrackingLedger]:
+    ) -> TrackingLedger | None:
         """Return the ledger for (wallet, asset), or None if missing."""
         ...
 
@@ -85,7 +83,7 @@ class ITrackingRepository(ABC):
         self,
         tracked_wallet: str,
         asset: str,
-        new_ref: Optional[Decimal],
+        new_ref: Decimal | None,
     ) -> TrackingLedger:
         """Get ledger, set close_stage_ref_post_tracking_shares (ref_pt) to new_ref, save and return. Ledger must exist."""
         ledger = await self.get(tracked_wallet, asset)

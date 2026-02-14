@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Order execution events."""
 
 from polymarket_copy_trading.events.orders.copy_trade_events import (

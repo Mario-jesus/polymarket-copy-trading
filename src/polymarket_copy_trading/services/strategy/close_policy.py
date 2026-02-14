@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ClosePolicy: pure logic to decide how many positions the bot should close.
 
 No I/O. Receives all inputs from the orquestador (ledger state, open positions count, settings).
@@ -29,7 +28,7 @@ class ClosePolicyResult:
 class ClosePolicyInput:
     """Input context for ClosePolicy.positions_to_close (all data provided by orquestador)."""
 
-    ledger: "TrackingLedger"
+    ledger: TrackingLedger
     """Ledger for (wallet, asset); must have post_tracking_shares and close_stage_ref_post_tracking_shares."""
     open_positions_count: int
     """Number of open BotPositions for this ledger (used for per_position divisor and cap)."""
@@ -47,7 +46,7 @@ class ClosePolicy:
     def positions_to_close(
         self,
         inp: ClosePolicyInput,
-        settings: "StrategySettings",
+        settings: StrategySettings,
     ) -> ClosePolicyResult:
         """Return ClosePolicyResult (positions_to_close + reason) for logging.
 

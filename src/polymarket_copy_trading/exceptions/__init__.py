@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """Exceptions subpackage."""
 
 from polymarket_copy_trading.exceptions.exceptions import (
     MissingRequiredConfigError,
-    PolymarketError,
     PolymarketAPIError,
+    PolymarketError,
     RateLimitError,
 )
 from polymarket_copy_trading.exceptions.queue_exceptions import (

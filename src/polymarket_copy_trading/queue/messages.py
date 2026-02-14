@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
 """DTOs for queue messages."""
 
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
-from datetime import datetime, timezone
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,15 +15,15 @@ class QueueMessage[T]:
     id: uuid.UUID
     payload: T
     created_at: datetime
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
     @classmethod
-    def create(cls, payload: T, metadata: Optional[dict[str, Any]] = None) -> QueueMessage[T]:
+    def create(cls, payload: T, metadata: dict[str, Any] | None = None) -> QueueMessage[T]:
         """Create a new message with the given payload."""
         return cls(
             id=uuid.uuid4(),
             payload=payload,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             metadata=metadata,
         )
 

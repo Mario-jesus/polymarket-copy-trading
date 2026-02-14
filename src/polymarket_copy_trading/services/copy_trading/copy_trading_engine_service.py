@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """CopyTradingEngineService: orchestrates OpenPolicy, ClosePolicy and order execution.
 
 After PostTrackingEngine updates the ledger, this service evaluates whether to open
@@ -7,10 +6,12 @@ or close positions and executes orders via MarketOrderExecutionService.
 
 from __future__ import annotations
 
-import structlog
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Optional, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+import structlog
 
 from polymarket_copy_trading.events.orders.copy_trade_events import (
     CopyTradeFailedEvent,
@@ -40,28 +41,30 @@ if TYPE_CHECKING:
     from polymarket_copy_trading.services.order_execution.market_order_execution import (
         MarketOrderExecutionService,
     )
-    from polymarket_copy_trading.services.tracking_trader.trade_dto import DataApiTradeDTO
+    from polymarket_copy_trading.services.tracking_trader.trade_dto import (
+        DataApiTradeDTO,
+    )
 
 
 class CopyTradingEngineService:
     """Orchestrates open/close decisions and order execution based on ledger state."""
 
-    _event_bus: Optional["EventBus"] = None
+    _event_bus: EventBus | None = None
 
     def __init__(
         self,
-        tracking_repository: "ITrackingRepository",
-        bot_position_repository: "IBotPositionRepository",
-        account_value_service: "AccountValueService",
-        data_api: "DataApiClient",
-        market_order_execution: "MarketOrderExecutionService",
-        settings: "Settings",
-        event_bus: Optional[Any] = None,
-        open_policy: Optional[OpenPolicy] = None,
-        close_policy: Optional[ClosePolicy] = None,
+        tracking_repository: ITrackingRepository,
+        bot_position_repository: IBotPositionRepository,
+        account_value_service: AccountValueService,
+        data_api: DataApiClient,
+        market_order_execution: MarketOrderExecutionService,
+        settings: Settings,
+        event_bus: Any | None = None,
+        open_policy: OpenPolicy | None = None,
+        close_policy: ClosePolicy | None = None,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the copy trading engine.
 
@@ -92,8 +95,8 @@ class CopyTradingEngineService:
     async def evaluate_and_execute(
         self,
         wallet: str,
-        trade: "DataApiTradeDTO",
-        ledger: Optional["TrackingLedger"],
+        trade: DataApiTradeDTO,
+        ledger: TrackingLedger | None,
     ) -> None:
         """Evaluate open/close policies and execute orders based on the trade and ledger.
 
@@ -122,8 +125,8 @@ class CopyTradingEngineService:
     async def _handle_buy(
         self,
         wallet: str,
-        trade: "DataApiTradeDTO",
-        ledger: "TrackingLedger",
+        trade: DataApiTradeDTO,
+        ledger: TrackingLedger,
         asset: str,
     ) -> None:
         """Evaluate OpenPolicy and open a position if allowed."""
@@ -193,9 +196,7 @@ class CopyTradingEngineService:
 
         price = trade.price if trade.price and trade.price > 0 else None
         shares_held = (
-            Decimal(str(amount_usdc / price))
-            if price is not None
-            else Decimal(str(amount_usdc))
+            Decimal(str(amount_usdc / price)) if price is not None else Decimal(str(amount_usdc))
         )
         if shares_held <= 0:
             shares_held = Decimal(str(amount_usdc))
@@ -210,7 +211,7 @@ class CopyTradingEngineService:
         )
         await self._position_repo.save(position)
         resp = exec_result.response
-        tx_hash = (resp.transactions_hashes[0] if resp and resp.transactions_hashes else None)
+        tx_hash = resp.transactions_hashes[0] if resp and resp.transactions_hashes else None
         self._emit_order_placed(
             order_id=resp.order_id if resp else None,
             position_id=position.id,
@@ -242,8 +243,8 @@ class CopyTradingEngineService:
     async def _handle_sell(
         self,
         wallet: str,
-        trade: "DataApiTradeDTO",
-        ledger: "TrackingLedger",
+        trade: DataApiTradeDTO,
+        ledger: TrackingLedger,
         asset: str,
     ) -> None:
         """Evaluate ClosePolicy and close positions if required."""
@@ -256,9 +257,7 @@ class CopyTradingEngineService:
             ledger=ledger,
             open_positions_count=open_positions_count,
         )
-        result = self._close_policy.positions_to_close(
-            inp, self._settings.strategy
-        )
+        result = self._close_policy.positions_to_close(inp, self._settings.strategy)
 
         if result.positions_to_close <= 0:
             self._logger.debug(
@@ -279,7 +278,7 @@ class CopyTradingEngineService:
                 amount=float(position.shares_held),
             )
             resp = exec_result.response
-            tx_hash = (resp.transactions_hashes[0] if resp and resp.transactions_hashes else None)
+            tx_hash = resp.transactions_hashes[0] if resp and resp.transactions_hashes else None
             if not exec_result.success:
                 self._logger.warning(
                     "copy_engine_sell_failed",
@@ -308,7 +307,7 @@ class CopyTradingEngineService:
                 position.id,
                 close_order_id=resp.order_id if resp else None,
                 close_transaction_hash=tx_hash,
-                close_requested_at=datetime.now(timezone.utc),
+                close_requested_at=datetime.now(UTC),
             )
             if pending is None:
                 self._logger.warning(
@@ -362,17 +361,17 @@ class CopyTradingEngineService:
     def _emit_order_failed(
         self,
         reason: str,
-        position_id: Optional["UUID"],
-        order_id: Optional[str],
+        position_id: UUID | None,
+        order_id: str | None,
         tracked_wallet: str,
         asset: str,
         is_open: bool,
-        error_message: Optional[str] = None,
-        transaction_hash: Optional[str] = None,
-        amount: Optional[float] = None,
-        amount_kind: Optional[Literal["usdc", "shares"]] = None,
-        close_requested_at: Optional[datetime] = None,
-        close_attempts: Optional[int] = None,
+        error_message: str | None = None,
+        transaction_hash: str | None = None,
+        amount: float | None = None,
+        amount_kind: Literal["usdc", "shares"] | None = None,
+        close_requested_at: datetime | None = None,
+        close_attempts: int | None = None,
     ) -> None:
         """Emit CopyTradeFailedEvent for TradeFailedNotifier."""
         if self._event_bus is None:
@@ -395,15 +394,15 @@ class CopyTradingEngineService:
 
     def _emit_order_placed(
         self,
-        order_id: Optional[str],
-        position_id: "UUID",
+        order_id: str | None,
+        position_id: UUID,
         tracked_wallet: str,
         asset: str,
         is_open: bool,
         amount: float,
         amount_kind: Literal["usdc", "shares"],
         success: bool,
-        transaction_hash: Optional[str] = None,
+        transaction_hash: str | None = None,
     ) -> None:
         """Emit CopyTradeOrderPlacedEvent for OrderAnalysisWorker."""
         if self._event_bus is None or not order_id:

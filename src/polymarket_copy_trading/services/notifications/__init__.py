@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Notification-related services (trade confirmed, trade failed, etc.)."""
 
 from polymarket_copy_trading.services.notifications.trade_confirmed_notifier import (

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Async queue interface (protocol)."""
 
 from __future__ import annotations

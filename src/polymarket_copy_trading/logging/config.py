@@ -1,15 +1,15 @@
-# -*- coding: utf-8 -*-
 """Logging configuration for structlog + Logfire."""
 
 from __future__ import annotations
 
 import logging
-import logfire
-import structlog
-from typing import Any
-from structlog.types import EventDict, Processor
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
+from typing import Any
+
+import logfire
+import structlog
+from structlog.types import EventDict, Processor
 
 from polymarket_copy_trading.config import get_settings
 
@@ -26,9 +26,7 @@ LOG_LEVEL_TO_LOGFIRE: dict[str, str] = {
 def _add_service_context(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     """Attach logger name, service_name, service_version and environment to every log event."""
     stdlib_logger = getattr(logger, "_logger", None)
-    event_dict["logger"] = (
-        getattr(stdlib_logger, "name", None) or getattr(logger, "name", "") or ""
-    )
+    event_dict["logger"] = getattr(stdlib_logger, "name", None) or getattr(logger, "name", "") or ""
     app_settings = get_settings().app
     event_dict["app_name"] = app_settings.app_name
     if app_settings.service_name:
@@ -48,9 +46,7 @@ def configure_logging() -> None:
     enabled_levels: list[int] = []
 
     if logging_settings.log_to_console:
-        console_level = getattr(
-            logging, logging_settings.console_level.upper(), logging.INFO
-        )
+        console_level = getattr(logging, logging_settings.console_level.upper(), logging.INFO)
         console_handler = logging.StreamHandler()
         console_handler.setLevel(console_level)
         console_handler.setFormatter(logging.Formatter("%(message)s"))
@@ -79,16 +75,14 @@ def configure_logging() -> None:
 
     # Configure Logfire only if enabled
     if logging_settings.logfire_enabled:
-        logfire_min_level = LOG_LEVEL_TO_LOGFIRE.get(
-            logging_settings.logfire_level, "info"
-        )
+        logfire_min_level = LOG_LEVEL_TO_LOGFIRE.get(logging_settings.logfire_level, "info")
 
         logfire.configure(
             token=logging_settings.logfire_token,
             service_name=app_settings.service_name or app_settings.app_name,
             service_version=app_settings.service_version,
-            min_level=logfire_min_level, # type: ignore[arg-type]
-            environment=app_settings.environment
+            min_level=logfire_min_level,  # type: ignore[arg-type]
+            environment=app_settings.environment,
         )
 
     # Build processor chain
@@ -115,9 +109,7 @@ def configure_logging() -> None:
             or logging_settings.json_format
         )
         renderer: Any = (
-            structlog.processors.JSONRenderer()
-            if use_json
-            else structlog.dev.ConsoleRenderer()
+            structlog.processors.JSONRenderer() if use_json else structlog.dev.ConsoleRenderer()
         )
         processors.append(renderer)  # type: ignore[arg-type]
 

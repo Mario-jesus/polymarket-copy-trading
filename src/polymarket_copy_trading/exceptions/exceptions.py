@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Custom exceptions for Polymarket API and tracking."""
 
 from __future__ import annotations

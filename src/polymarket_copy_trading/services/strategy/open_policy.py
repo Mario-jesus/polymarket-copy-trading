@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """OpenPolicy: pure logic to decide if the bot should open a new position.
 
 No I/O. Receives all inputs from the orquestador (ledger state, counts, settings).
@@ -28,7 +27,7 @@ class OpenPolicyResult:
 class OpenPolicyInput:
     """Input context for OpenPolicy.should_open (all data provided by orquestador)."""
 
-    ledger: "TrackingLedger"
+    ledger: TrackingLedger
     """Ledger for (wallet, asset)."""
     open_positions_count: int
     """Number of open BotPositions for this ledger."""
@@ -50,7 +49,7 @@ class OpenPolicy:
     def should_open(
         self,
         inp: OpenPolicyInput,
-        settings: "StrategySettings",
+        settings: StrategySettings,
     ) -> OpenPolicyResult:
         """Return OpenPolicyResult (decision + reason) for logging.
 
@@ -100,9 +99,7 @@ class OpenPolicy:
         if settings.asset_min_position_percent > 0 and inp.account_total_value_usdc > 0:
             open_pct_val = inp.post_tracking_value_usdc / inp.account_total_value_usdc
             effective_pct_val = (
-                (inp.open_positions_count + 1)
-                * settings.asset_min_position_percent
-                / 100
+                (inp.open_positions_count + 1) * settings.asset_min_position_percent / 100
             )
             percent_ok = open_pct_val >= Decimal(str(effective_pct_val))
 

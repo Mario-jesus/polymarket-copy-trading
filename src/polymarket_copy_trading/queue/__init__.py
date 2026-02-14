@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Async queue abstraction and implementations."""
 
 from polymarket_copy_trading.queue.base import IAsyncQueue

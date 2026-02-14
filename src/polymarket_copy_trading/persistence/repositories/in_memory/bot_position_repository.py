@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 """In-memory bot position repository (keyed by position id)."""
 
 from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID
 
 from polymarket_copy_trading.models.bot_position import BotPosition
@@ -26,7 +24,7 @@ class InMemoryBotPositionRepository(IBotPositionRepository):
         """Initialize an empty in-memory store."""
         self._store: dict[UUID, BotPosition] = {}
 
-    async def get(self, position_id: UUID) -> Optional[BotPosition]:
+    async def get(self, position_id: UUID) -> BotPosition | None:
         """Return the position by id, or None if missing."""
         return self._store.get(position_id)
 
@@ -58,10 +56,10 @@ class InMemoryBotPositionRepository(IBotPositionRepository):
     async def mark_closing_pending(
         self,
         position_id: UUID,
-        close_order_id: Optional[str] = None,
-        close_transaction_hash: Optional[str] = None,
-        close_requested_at: Optional[datetime] = None,
-    ) -> Optional[BotPosition]:
+        close_order_id: str | None = None,
+        close_transaction_hash: str | None = None,
+        close_requested_at: datetime | None = None,
+    ) -> BotPosition | None:
         """Set status CLOSING_PENDING and update close tracking metadata."""
         position = await self.get(position_id)
         if position is None:
@@ -79,12 +77,12 @@ class InMemoryBotPositionRepository(IBotPositionRepository):
     async def confirm_closed(
         self,
         position_id: UUID,
-        closed_at: Optional[datetime] = None,
-        close_proceeds_usdc: Optional[Decimal] = None,
-        close_fees: Optional[Decimal] = None,
-        close_order_id: Optional[str] = None,
-        close_transaction_hash: Optional[str] = None,
-    ) -> Optional[BotPosition]:
+        closed_at: datetime | None = None,
+        close_proceeds_usdc: Decimal | None = None,
+        close_fees: Decimal | None = None,
+        close_order_id: str | None = None,
+        close_transaction_hash: str | None = None,
+    ) -> BotPosition | None:
         """Set a CLOSING_PENDING position to CLOSED with optional closed_at and PnL fields."""
         position = await self.get(position_id)
         if position is None:
@@ -108,7 +106,7 @@ class InMemoryBotPositionRepository(IBotPositionRepository):
         position_id: UUID,
         close_proceeds_usdc: Decimal,
         close_fees: Decimal,
-    ) -> Optional[BotPosition]:
+    ) -> BotPosition | None:
         """Update a CLOSED position with real close amounts."""
         position = await self.get(position_id)
         if position is None or position.is_open:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Abstract interface for seen trade storage (in-memory, DB, etc.)."""
 
 from __future__ import annotations

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Polymarket copy trading: async clients and tracking services."""
 
 from polymarket_copy_trading.clients import (

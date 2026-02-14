@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """SeenTrade: domain entity for persistent trade deduplication.
 
 Identity is (wallet, trade_key). Used to avoid reprocessing trades on restart.
@@ -8,7 +7,7 @@ trade_key comes from utils.dedupe.trade_key() (e.g. tx:{transactionHash}).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,5 +40,5 @@ class SeenTrade:
         return cls(
             wallet=wallet,
             trade_key=trade_key,
-            seen_at=seen_at or datetime.now(timezone.utc),
+            seen_at=seen_at or datetime.now(UTC),
         )

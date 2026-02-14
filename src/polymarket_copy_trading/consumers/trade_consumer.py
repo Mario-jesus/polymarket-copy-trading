@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Consumer that reads trade messages from the queue and processes them.
 
 Uses _running (instance) for start/stop state only. No shutdown event in the loop:
@@ -10,9 +9,11 @@ task cancel (CancelledError).
 from __future__ import annotations
 
 import asyncio
-import structlog
+from collections.abc import Callable
 from types import TracebackType
-from typing import Any, Callable, Optional, Type
+from typing import Any
+
+import structlog
 
 from polymarket_copy_trading.exceptions import QueueShutdown
 from polymarket_copy_trading.queue import IAsyncQueue, QueueMessage
@@ -34,7 +35,7 @@ class TradeConsumer:
         trade_processor: TradeProcessorService,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the consumer.
 
@@ -49,7 +50,7 @@ class TradeConsumer:
         self._logger = get_logger(logger_name or self.__class__.__name__)
         self._running = False
         self._lock = asyncio.Lock()
-        self._worker_task: Optional[asyncio.Task[None]] = None
+        self._worker_task: asyncio.Task[None] | None = None
 
     async def __aenter__(self) -> TradeConsumer:
         await self.start()
@@ -57,9 +58,9 @@ class TradeConsumer:
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> bool:
         await self.stop()
         return False

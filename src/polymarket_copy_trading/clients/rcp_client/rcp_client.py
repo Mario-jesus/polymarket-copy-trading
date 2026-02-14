@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 """Polygon RPC client for on-chain reads (eth_call, ERC-20 balances)."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from decimal import Decimal, getcontext
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 
@@ -35,11 +35,11 @@ class RpcClient:
 
     def __init__(
         self,
-        http_client: "AsyncHttpClient",
-        settings: "Settings",
+        http_client: AsyncHttpClient,
+        settings: Settings,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the RPC client.
 
@@ -130,7 +130,7 @@ class RpcClient:
         token_address: str,
         owner_address: str,
         *,
-        decimals: Optional[int] = None,
+        decimals: int | None = None,
     ) -> Decimal:
         """Get human-readable ERC-20 balance of owner.
 

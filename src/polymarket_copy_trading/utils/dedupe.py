@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Deduplication key for trades."""
 
 from __future__ import annotations

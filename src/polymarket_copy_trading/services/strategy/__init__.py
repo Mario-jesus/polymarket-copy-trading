@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Strategy policies: OpenPolicy, ClosePolicy (pure logic, no I/O)."""
 
 from polymarket_copy_trading.services.strategy.close_policy import (

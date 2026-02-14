@@ -1,50 +1,62 @@
-# -*- coding: utf-8 -*-
 """Dependency injection container (dependency-injector)."""
 
 from __future__ import annotations
 
 from dependency_injector import containers, providers
 
-from polymarket_copy_trading.config import Settings, get_settings
-from polymarket_copy_trading.events.bus import get_event_bus
-from polymarket_copy_trading.queue import InMemoryQueue, QueueMessage
-from polymarket_copy_trading.services.order_analysis.order_analysis_worker import (
-    PendingOrder,
-)
 from polymarket_copy_trading.clients.clob_client import AsyncClobClient
 from polymarket_copy_trading.clients.data_api import DataApiClient
 from polymarket_copy_trading.clients.http import AsyncHttpClient
 from polymarket_copy_trading.clients.rcp_client import RpcClient
-from polymarket_copy_trading.notifications.notification_manager import NotificationService
-from polymarket_copy_trading.notifications.strategies.base import BaseNotificationStrategy
+from polymarket_copy_trading.config import Settings, get_settings
+from polymarket_copy_trading.consumers.trade_consumer import TradeConsumer
+from polymarket_copy_trading.events.bus import get_event_bus
+from polymarket_copy_trading.notifications.notification_manager import (
+    NotificationService,
+)
+from polymarket_copy_trading.notifications.strategies.base import (
+    BaseNotificationStrategy,
+)
 from polymarket_copy_trading.notifications.strategies.console import ConsoleNotifier
 from polymarket_copy_trading.notifications.strategies.telegram import TelegramNotifier
-from polymarket_copy_trading.notifications.stylers.notification_styler import EventNotificationStyler
+from polymarket_copy_trading.notifications.stylers.notification_styler import (
+    EventNotificationStyler,
+)
 from polymarket_copy_trading.persistence.repositories.in_memory import (
     InMemoryBotPositionRepository,
     InMemorySeenTradeRepository,
     InMemoryTrackingRepository,
     InMemoryTrackingSessionRepository,
 )
+from polymarket_copy_trading.queue import InMemoryQueue, QueueMessage
+from polymarket_copy_trading.services.account_value import AccountValueService
 from polymarket_copy_trading.services.copy_trading import CopyTradingEngineService
-from polymarket_copy_trading.services.pnl import PnLService
 from polymarket_copy_trading.services.notifications import (
     TradeConfirmedNotifier,
     TradeFailedNotifier,
 )
 from polymarket_copy_trading.services.order_analysis import OrderAnalysisWorker
-from polymarket_copy_trading.services.order_execution.market_order_execution import MarketOrderExecutionService
-from polymarket_copy_trading.services.account_value import AccountValueService
+from polymarket_copy_trading.services.order_analysis.order_analysis_worker import (
+    PendingOrder,
+)
+from polymarket_copy_trading.services.order_execution.market_order_execution import (
+    MarketOrderExecutionService,
+)
+from polymarket_copy_trading.services.pnl import PnLService
 from polymarket_copy_trading.services.snapshot import SnapshotBuilderService
-from polymarket_copy_trading.services.tracking_trader import TradeTracker, DataApiTradeDTO
+from polymarket_copy_trading.services.tracking_trader import (
+    DataApiTradeDTO,
+    TradeTracker,
+)
 from polymarket_copy_trading.services.trade_processing import (
     PostTrackingEngine,
     TradeProcessorService,
 )
-from polymarket_copy_trading.consumers.trade_consumer import TradeConsumer
 
 
-def _build_trade_queue(settings: Settings) -> InMemoryQueue[QueueMessage[DataApiTradeDTO]]:
+def _build_trade_queue(
+    settings: Settings,
+) -> InMemoryQueue[QueueMessage[DataApiTradeDTO]]:
     """Build the trade queue with size from settings."""
     return InMemoryQueue[QueueMessage[DataApiTradeDTO]](maxsize=settings.tracking.queue_size)
 

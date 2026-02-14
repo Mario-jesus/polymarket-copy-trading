@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """Notification service and styler interface."""
 
 from __future__ import annotations
 
 import asyncio
-import structlog
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, List
+from typing import Any
+
+import structlog
 
 from polymarket_copy_trading.notifications.strategies import BaseNotificationStrategy
 from polymarket_copy_trading.notifications.types import NotificationMessage
@@ -17,7 +17,7 @@ from polymarket_copy_trading.notifications.types import NotificationMessage
 class NotificationService:
     """Dispatch notifications to all configured channels."""
 
-    notifiers: List[BaseNotificationStrategy]
+    notifiers: list[BaseNotificationStrategy]
     queue_size: int = 1000
     get_logger: Callable[[str], Any] = field(default=structlog.get_logger)
     _queue: asyncio.Queue[NotificationMessage] | None = field(init=False, default=None)

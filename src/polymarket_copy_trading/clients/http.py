@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Async HTTP client with retries and rate-limit handling."""
 
 from __future__ import annotations
@@ -6,9 +5,11 @@ from __future__ import annotations
 import asyncio
 import random
 import uuid
+from collections.abc import Callable
+from typing import Any
+
 import aiohttp
 import structlog
-from typing import Any, Callable, Dict, Optional
 from structlog.contextvars import bound_contextvars
 
 from polymarket_copy_trading.config import Settings
@@ -27,9 +28,9 @@ class AsyncHttpClient:
         self,
         settings: Settings,
         *,
-        session: Optional[aiohttp.ClientSession] = None,
+        session: aiohttp.ClientSession | None = None,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the client.
 
@@ -72,7 +73,7 @@ class AsyncHttpClient:
         self,
         url: str,
         *,
-        params: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> Any:
         """Perform a GET request and return JSON. Retries on failure and on 429.
 
@@ -90,7 +91,7 @@ class AsyncHttpClient:
         params = params or {}
         request_id = uuid.uuid4().hex[:12]
         max_retries = self._settings.api.max_retries
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         with bound_contextvars(
             http_url=url,
@@ -103,7 +104,7 @@ class AsyncHttpClient:
                         session = await self._get_session()
                         async with session.get(url, params=params) as response:
                             if response.status == 429:
-                                retry_after: Optional[float] = None
+                                retry_after: float | None = None
                                 header = response.headers.get("Retry-After")
                                 if header:
                                     try:
@@ -132,7 +133,7 @@ class AsyncHttpClient:
                             http_status_code=getattr(e, "status", None),
                         )
                         await asyncio.sleep(self._backoff_delay(attempt))
-                    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    except (TimeoutError, aiohttp.ClientError) as e:
                         last_error = e
                         self._logger.debug(
                             "http_get_retry",
@@ -170,7 +171,7 @@ class AsyncHttpClient:
         self,
         url: str,
         *,
-        json: Optional[Dict[str, Any]] = None,
+        json: dict[str, Any] | None = None,
     ) -> Any:
         """Perform a POST request with JSON body and return JSON. Retries on failure.
 
@@ -187,7 +188,7 @@ class AsyncHttpClient:
         payload = json or {}
         request_id = uuid.uuid4().hex[:12]
         max_retries = self._settings.api.max_retries
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         with bound_contextvars(
             http_url=url,
@@ -210,7 +211,7 @@ class AsyncHttpClient:
                             http_status_code=getattr(e, "status", None),
                         )
                         await asyncio.sleep(self._backoff_delay(attempt))
-                    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    except (TimeoutError, aiohttp.ClientError) as e:
                         last_error = e
                         self._logger.debug(
                             "http_post_retry",

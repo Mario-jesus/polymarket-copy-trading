@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Validation helpers for addresses and condition IDs."""
 
 from __future__ import annotations

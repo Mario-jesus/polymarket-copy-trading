@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """HTTP and API clients."""
 
 from polymarket_copy_trading.clients.clob_client import AsyncClobClient

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Trade-related DTOs: Data API (GET /trades) and Gamma cache (market_id, slug, title).
 
 Data from the Polymarket Data API and from the Gamma cache are kept in separate
@@ -7,9 +6,9 @@ DTOs. TrackingTradeDTO composes them without mixing fields.
 
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
 from dataclasses import asdict, dataclass
 from time import time
+from typing import Any, Literal
 
 TradeSide = Literal["BUY", "SELL"]
 
@@ -30,26 +29,26 @@ class DataApiTradeDTO:
     timestamp: int = 0
     """Unix timestamp (seconds). Default 0 if missing."""
 
-    condition_id: Optional[str] = None
-    outcome: Optional[str] = None
-    side: Optional[TradeSide] = None
-    price: Optional[float] = None
-    size: Optional[float] = None
-    transaction_hash: Optional[str] = None
-    proxy_wallet: Optional[str] = None
-    asset: Optional[str] = None
-    icon: Optional[str] = None
-    event_slug: Optional[str] = None
-    event_id: Optional[str] = None
-    outcome_index: Optional[int] = None
-    name: Optional[str] = None
-    pseudonym: Optional[str] = None
-    bio: Optional[str] = None
-    profile_image: Optional[str] = None
-    profile_image_optimized: Optional[str] = None
+    condition_id: str | None = None
+    outcome: str | None = None
+    side: TradeSide | None = None
+    price: float | None = None
+    size: float | None = None
+    transaction_hash: str | None = None
+    proxy_wallet: str | None = None
+    asset: str | None = None
+    icon: str | None = None
+    event_slug: str | None = None
+    event_id: str | None = None
+    outcome_index: int | None = None
+    name: str | None = None
+    pseudonym: str | None = None
+    bio: str | None = None
+    profile_image: str | None = None
+    profile_image_optimized: str | None = None
     """Data API also returns title and slug per trade; we keep them here as API source."""
-    title: Optional[str] = None
-    slug: Optional[str] = None
+    title: str | None = None
+    slug: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Snake_case dict; do not mix with Gamma fields."""

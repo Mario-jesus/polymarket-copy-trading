@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Queue-specific exceptions."""
 
 from __future__ import annotations

@@ -1,13 +1,14 @@
-# -*- coding: utf-8 -*-
 """Console notifier (print-based)."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from polymarket_copy_trading.notifications.types import NotificationMessage
-from polymarket_copy_trading.notifications.strategies.base import BaseNotificationStrategy
 from polymarket_copy_trading.config import Settings
+from polymarket_copy_trading.notifications.strategies.base import (
+    BaseNotificationStrategy,
+)
+from polymarket_copy_trading.notifications.types import NotificationMessage
 
 if TYPE_CHECKING:  # pragma: no cover
     from polymarket_copy_trading.notifications.types import NotificationStyler
@@ -16,11 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class ConsoleNotifier(BaseNotificationStrategy):
     """Print notifications to stdout."""
 
-    def __init__(
-        self,
-        settings: "Settings",
-        styler: "NotificationStyler"
-    ) -> None:
+    def __init__(self, settings: Settings, styler: NotificationStyler) -> None:
         super().__init__(settings)
         self._running = False
         self._styler = styler

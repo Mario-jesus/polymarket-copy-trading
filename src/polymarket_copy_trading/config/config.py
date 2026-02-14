@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Configuration loaded from environment via Pydantic Settings.
 
 Nested env vars use <section>__<key>, e.g. LOGGING__CONSOLE_LEVEL, API__DATA_API_HOST.
@@ -7,7 +6,7 @@ Nested env vars use <section>__<key>, e.g. LOGGING__CONSOLE_LEVEL, API__DATA_API
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,8 +18,8 @@ class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     app_name: str = Field(default="polymarket-copy-trading", description="Application name.")
-    service_name: Optional[str] = Field(default=None, description="Service name.")
-    service_version: Optional[str] = Field(default=None, description="Service version.")
+    service_name: str | None = Field(default=None, description="Service name.")
+    service_version: str | None = Field(default=None, description="Service version.")
     environment: Literal["development", "test", "production"] = Field(
         default="development",
         description="Environment (development, test, production).",
@@ -55,7 +54,9 @@ class LoggingSettings(BaseSettings):
         "S", "M", "H", "D", "W0", "W1", "W2", "W3", "W4", "W5", "W6", "midnight"
     ] = Field(default="midnight", description="Log rotation interval (e.g. midnight, H, D).")
     log_file_interval: int = Field(default=1, description="Number of intervals between rotations.")
-    log_file_backup_count: int = Field(default=30, description="Number of backup log files to keep.")
+    log_file_backup_count: int = Field(
+        default=30, description="Number of backup log files to keep."
+    )
     log_file_utc: bool = Field(default=True, description="Use UTC for log file timestamps.")
 
     # Main output format: JSONRenderer if True, ConsoleRenderer if False
@@ -66,7 +67,7 @@ class LoggingSettings(BaseSettings):
 
     # Logfire integration via structlog
     logfire_enabled: bool = Field(default=False, description="Enable Logfire integration.")
-    logfire_token: Optional[str] = Field(default=None, description="Logfire token.")
+    logfire_token: str | None = Field(default=None, description="Logfire token.")
 
 
 class ApiSettings(BaseSettings):
@@ -126,7 +127,7 @@ class PolymarketClobSettings(BaseSettings):
     api_secret: str = Field(..., description="Polymarket API secret.")
     api_passphrase: str = Field(..., description="Polymarket API passphrase.")
     funder: str = Field(..., description="Proxy wallet address (Wallet Address in Polymarket UI).")
-    signer: Optional[str] = Field(default=None, description="Signer address (EOA that signs orders).")
+    signer: str | None = Field(default=None, description="Signer address (EOA that signs orders).")
 
 
 class TelegramNotificationSettings(BaseSettings):
@@ -135,8 +136,8 @@ class TelegramNotificationSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     enabled: bool = Field(default=False, description="Enable Telegram notifications.")
-    api_key: Optional[str] = Field(default=None, description="Telegram bot API key.")
-    chat_id: Optional[str] = Field(default=None, description="Telegram chat ID.")
+    api_key: str | None = Field(default=None, description="Telegram bot API key.")
+    chat_id: str | None = Field(default=None, description="Telegram chat ID.")
     messages_per_minute: int = Field(default=30, ge=1, le=120)
     max_retries: int = Field(default=5, ge=0, le=20)
     backoff_base_seconds: float = Field(default=1.0, ge=0.1, le=60.0)

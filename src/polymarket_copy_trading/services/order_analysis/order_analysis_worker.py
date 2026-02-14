@@ -1,17 +1,17 @@
-# -*- coding: utf-8 -*-
 """OrderAnalysisWorker: listens to CopyTradeOrderPlacedEvent, polls get_trades, updates BotPosition."""
 
 from __future__ import annotations
 
 import asyncio
-import structlog
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
+import structlog
 from py_clob_client.clob_types import TradeParams  # type: ignore[import-untyped]
 
 from polymarket_copy_trading.clients.clob_client.schema import TradeSchema
@@ -26,9 +26,9 @@ from polymarket_copy_trading.utils.validation import mask_address
 if TYPE_CHECKING:
     from bubus import EventBus  # type: ignore[import-untyped]
 
-    from polymarket_copy_trading.models.bot_position import BotPosition
     from polymarket_copy_trading.clients.clob_client import AsyncClobClient
     from polymarket_copy_trading.config import Settings
+    from polymarket_copy_trading.models.bot_position import BotPosition
     from polymarket_copy_trading.persistence.repositories.interfaces.bot_position_repository import (
         IBotPositionRepository,
     )
@@ -44,7 +44,7 @@ class PendingOrder:
     tracked_wallet: str
     asset: str
     is_open: bool
-    transaction_hash: Optional[str] = None
+    transaction_hash: str | None = None
     enqueued_at: float = field(default_factory=time.monotonic)
 
 
@@ -60,26 +60,26 @@ class OrderAnalysisWorker:
 
     def __init__(
         self,
-        clob_client: "AsyncClobClient",
-        bot_position_repository: "IBotPositionRepository",
+        clob_client: AsyncClobClient,
+        bot_position_repository: IBotPositionRepository,
         event_bus: Any,
         queue: IAsyncQueue[PendingOrder],
-        settings: "Settings",
-        trade_confirmed_notifier: "TradeConfirmedNotifier",
+        settings: Settings,
+        trade_confirmed_notifier: TradeConfirmedNotifier,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         self._clob = clob_client
         self._position_repo = bot_position_repository
-        self._event_bus: "EventBus" = event_bus
+        self._event_bus: EventBus = event_bus
         self._queue = queue
         self._settings = settings
         self._trade_confirmed_notifier = trade_confirmed_notifier
         self._poll_interval = settings.order_analysis.poll_interval_sec
         self._max_attempts = settings.order_analysis.max_attempts
         self._logger = get_logger(logger_name or self.__class__.__name__)
-        self._task: Optional[asyncio.Task[None]] = None
+        self._task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
         """Subscribe to CopyTradeOrderPlacedEvent and start the worker loop."""
@@ -144,16 +144,16 @@ class OrderAnalysisWorker:
         self,
         reason: str,
         position_id: UUID,
-        order_id: Optional[str],
+        order_id: str | None,
         tracked_wallet: str,
         asset: str,
         is_open: bool,
-        error_message: Optional[str] = None,
-        transaction_hash: Optional[str] = None,
-        amount: Optional[float] = None,
-        amount_kind: Optional[Literal["usdc", "shares"]] = None,
-        close_requested_at: Optional[datetime] = None,
-        close_attempts: Optional[int] = None,
+        error_message: str | None = None,
+        transaction_hash: str | None = None,
+        amount: float | None = None,
+        amount_kind: Literal["usdc", "shares"] | None = None,
+        close_requested_at: datetime | None = None,
+        close_attempts: int | None = None,
     ) -> None:
         """Emit CopyTradeFailedEvent for TradeFailedNotifier."""
         event = CopyTradeFailedEvent(
@@ -181,7 +181,7 @@ class OrderAnalysisWorker:
 
     async def _worker_loop(self) -> None:
         """Process pending orders: poll get_trades until found, then update BotPosition."""
-        pending: Optional[PendingOrder] = None
+        pending: PendingOrder | None = None
         while True:
             try:
                 pending = await self._queue.get()
@@ -255,11 +255,11 @@ class OrderAnalysisWorker:
 
         return False
 
-    async def _find_trade(self, pending: PendingOrder) -> Optional[TradeSchema]:
+    async def _find_trade(self, pending: PendingOrder) -> TradeSchema | None:
         """Fetch recent trades for asset and find the one matching pending order."""
         try:
             params = TradeParams(asset_id=pending.asset)
-            trades: List[TradeSchema] = await self._clob.get_trades(params)
+            trades: list[TradeSchema] = await self._clob.get_trades(params)
             for t in trades:
                 if self._trade_matches_pending(t, pending):
                     return t
@@ -274,7 +274,9 @@ class OrderAnalysisWorker:
             )
         return None
 
-    async def _apply_trade_to_position(self, pending: PendingOrder, trade: TradeSchema) -> Optional["BotPosition"]:
+    async def _apply_trade_to_position(
+        self, pending: PendingOrder, trade: TradeSchema
+    ) -> BotPosition | None:
         """Update BotPosition with trade data (costs, fees). Returns updated position or None."""
         position = await self._position_repo.get(pending.position_id)
         if position is None:
@@ -327,7 +329,7 @@ class OrderAnalysisWorker:
             )
             return None
 
-        updated: Optional["BotPosition"]
+        updated: BotPosition | None
         if pending.is_open:
             updated = await self._update_open_position(position, notional, fee_usdc)
         else:
@@ -362,7 +364,9 @@ class OrderAnalysisWorker:
         )
         return updated
 
-    async def _update_open_position(self, position: "BotPosition", entry_cost_usdc: Decimal, open_fee_usdc: Decimal) -> "BotPosition":
+    async def _update_open_position(
+        self, position: BotPosition, entry_cost_usdc: Decimal, open_fee_usdc: Decimal
+    ) -> BotPosition:
         """Update an OPEN position with real entry cost and fees."""
         from dataclasses import replace
 
@@ -377,12 +381,12 @@ class OrderAnalysisWorker:
 
     async def _update_closed_position(
         self,
-        position: "BotPosition",
+        position: BotPosition,
         close_proceeds_usdc: Decimal,
         close_fee_usdc: Decimal,
-        close_order_id: Optional[str],
-        close_transaction_hash: Optional[str],
-    ) -> Optional["BotPosition"]:
+        close_order_id: str | None,
+        close_transaction_hash: str | None,
+    ) -> BotPosition | None:
         """Confirm a CLOSING_PENDING position as CLOSED with real close proceeds and fees."""
         updated = await self._position_repo.confirm_closed(
             position.id,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Event-based notification styler with emoji separators (Telegram-style).
 
 Each event type has a dedicated protected render method. Format adapted from
@@ -8,10 +7,13 @@ Polymarket copy-trading context (USDC, shares, condition_id, etc.).
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, cast
 
-from polymarket_copy_trading.notifications.types import NotificationMessage, NotificationStyler
+from polymarket_copy_trading.notifications.types import (
+    NotificationMessage,
+    NotificationStyler,
+)
 
 
 class EventNotificationStyler(NotificationStyler):
@@ -67,23 +69,20 @@ class EventNotificationStyler(NotificationStyler):
         return (
             f"🟢 <b>Position Opened</b>\n\n"
             f"📊 <b>Trade Summary</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🪙  <b>Asset:</b> {asset}\n"
             f"🔗 <b>Condition ID:</b> {condition_id}\n"
             f"📉 <b>Outcome:</b> {outcome}\n\n"
-
             f"👤 <b>Trader Info</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🔗 <b>Wallet:</b> {wallet}\n\n"
-
             f"💰 <b>Trade Details</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🔑 <b>Position ID:</b> {position_id}\n"
             f"🔗 <b>Transaction Hash:</b> {tx_hash}\n"
             f"📥 <b>Amount:</b> {amount_usdc} USDC\n"
             f"🪙  <b>Shares:</b> {shares}\n"
             f"💵 <b>Price:</b> {price} USDC\n\n"
-
             f"⏰ <b>Time:</b> {time_str}"
         )
 
@@ -116,36 +115,31 @@ class EventNotificationStyler(NotificationStyler):
         return (
             f"🔴 <b>Position Closed</b>\n\n"
             f"📊 <b>Trade Summary</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🪙 <b>Asset:</b> {asset}\n"
             f"🔗 <b>Condition ID:</b> {condition_id}\n"
             f"📉 <b>Outcome:</b> {outcome}\n\n"
-
             f"👤 <b>Trader Info</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🔗 <b>Wallet:</b> {wallet}\n\n"
-
             f"💰 <b>Trade Details</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🔑 <b>Position ID:</b> {position_id}\n"
             f"🔗 <b>Transaction Hash:</b> {tx_hash}\n"
             f"📥 <b>Entry:</b> {entry_usdc} USDC\n"
             f"📤 <b>Close Proceeds:</b> {close_usdc} USDC\n"
             f"🪙 <b>Shares:</b> {shares}\n"
             f"🧾 <b>Fees:</b> {fees_usdc} USDC\n\n"
-
             f"🧭 <b>Close Tracking</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"📋 <b>Close Order ID:</b> {close_order_id}\n"
             f"🔗 <b>Close Transaction Hash:</b> {close_tx_hash}\n"
             f"⏳ <b>Close Requested At:</b> {self._format_iso_or_value(close_requested_at_raw)}\n"
             f"🔁 <b>Close Attempts:</b> {close_attempts if close_attempts is not None else 'N/A'}\n\n"
-
             f"📈 <b>P&L</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"📊 <b>Realized:</b> {realized_str} USDC\n"
             f"{pnl_indicator} <b>Net:</b> {net_str} USDC\n\n"
-
             f"⏰ <b>Time:</b> {time_str}"
         )
 
@@ -187,7 +181,7 @@ class EventNotificationStyler(NotificationStyler):
         if has_close_tracking:
             close_tracking_block = (
                 f"\n🧭 <b>Close Tracking</b>\n"
-                f"{'─'*12}\n"
+                f"{'─' * 12}\n"
                 f"📋 <b>Close Order ID:</b> {close_order_id}\n"
                 f"🔗 <b>Close Transaction Hash:</b> {close_tx_hash}\n"
                 f"⏳ <b>Close Requested At:</b> {self._format_iso_or_value(close_requested_at_raw)}\n"
@@ -197,24 +191,21 @@ class EventNotificationStyler(NotificationStyler):
         return (
             f"❌ <b>Trade Failed</b>\n\n"
             f"📊 <b>Trade Summary</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🪙 <b>Asset:</b> {asset}\n"
             f"📈 <b>Side:</b> {side_str}\n"
             f"📋 <b>Reason:</b> {reason}\n\n"
-
             f"👤 <b>Trader Info</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🔗 <b>Wallet:</b> {wallet}\n\n"
-
             f"💰 <b>Failure Details</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"🔑 <b>Position ID:</b> {position_id}\n"
             f"📋 <b>Order ID:</b> {order_id}\n"
             f"🔗 <b>Transaction Hash:</b> {tx_hash}\n"
             f"{amount_line}"
             f"⚠️ <b>Error:</b> {error_msg}\n\n"
             f"{close_tracking_block}\n"
-
             f"⏰ <b>Time:</b> {time_str}"
         )
 
@@ -234,7 +225,7 @@ class EventNotificationStyler(NotificationStyler):
         return (
             f"▶️ <b>System Started</b>\n\n"
             f"🚀 <b>Status</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"{message.message}\n\n"
             f"👛 <b>Target Wallet:</b> {wallets_str}\n\n"
             f"⏰ <b>Time:</b> {time_str}"
@@ -246,7 +237,7 @@ class EventNotificationStyler(NotificationStyler):
         return (
             f"⏹️ <b>System Stopped</b>\n\n"
             f"🛑 <b>Status</b>\n"
-            f"{'─'*12}\n"
+            f"{'─' * 12}\n"
             f"{message.message}\n\n"
             f"⏰ <b>Time:</b> {time_str}"
         )
@@ -307,7 +298,7 @@ class EventNotificationStyler(NotificationStyler):
     @staticmethod
     def _format_datetime_now() -> str:
         """Format current datetime for display."""
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     @staticmethod
     def _format_timestamp(value: Any) -> str:
@@ -319,7 +310,7 @@ class EventNotificationStyler(NotificationStyler):
         except (TypeError, ValueError):
             return str(value)
         try:
-            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+            return datetime.fromtimestamp(ts, tz=UTC).isoformat()
         except (OSError, OverflowError, ValueError):
             return str(value)
 

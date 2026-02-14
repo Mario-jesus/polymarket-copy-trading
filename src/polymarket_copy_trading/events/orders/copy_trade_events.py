@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """Copy-trade specific events (emitted by CopyTradingEngineService and OrderAnalysisWorker)."""
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 from uuid import UUID
 
 from bubus import BaseEvent  # type: ignore[import-untyped]
@@ -20,17 +19,17 @@ class CopyTradeFailedEvent(BaseEvent[None]):
     """One of: order_placement_failed, trade_not_found, position_not_found,
     position_update_failed, queue_full, parse_trade_error, get_trades_error."""
 
-    position_id: Optional[UUID] = None
-    order_id: Optional[str] = None
+    position_id: UUID | None = None
+    order_id: str | None = None
     tracked_wallet: str
     asset: str
     is_open: bool
-    error_message: Optional[str] = None
-    transaction_hash: Optional[str] = None
-    amount: Optional[float] = None
-    amount_kind: Optional[Literal["usdc", "shares"]] = None
-    close_requested_at: Optional[datetime] = None
-    close_attempts: Optional[int] = None
+    error_message: str | None = None
+    transaction_hash: str | None = None
+    amount: float | None = None
+    amount_kind: Literal["usdc", "shares"] | None = None
+    close_requested_at: datetime | None = None
+    close_attempts: int | None = None
 
 
 class CopyTradeOrderPlacedEvent(BaseEvent[None]):
@@ -52,5 +51,5 @@ class CopyTradeOrderPlacedEvent(BaseEvent[None]):
     amount_kind: Literal["usdc", "shares"]
     success: bool
 
-    transaction_hash: Optional[str] = None
+    transaction_hash: str | None = None
     """First transaction hash from post_order response. Used as fallback to match trade."""

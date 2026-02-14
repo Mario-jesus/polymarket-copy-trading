@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """Notification message types."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol, Optional
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -13,8 +12,8 @@ class NotificationMessage:
 
     event_type: str
     message: str
-    title: Optional[str] = None
-    payload: Optional[dict[str, Any]] = None
+    title: str | None = None
+    payload: dict[str, Any] | None = None
 
 
 class NotificationStyler(Protocol):

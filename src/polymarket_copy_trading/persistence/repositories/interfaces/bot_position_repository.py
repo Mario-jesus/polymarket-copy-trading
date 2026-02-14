@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Abstract interface for bot position storage (in-memory, DB, etc.)."""
 
 from __future__ import annotations
@@ -6,7 +5,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID
 
 from polymarket_copy_trading.models.bot_position import BotPosition
@@ -16,7 +14,7 @@ class IBotPositionRepository(ABC):
     """Interface for persisting BotPosition (open/closed positions of the bot)."""
 
     @abstractmethod
-    async def get(self, position_id: UUID) -> Optional[BotPosition]:
+    async def get(self, position_id: UUID) -> BotPosition | None:
         """Return the position by id, or None if missing."""
         ...
 
@@ -47,7 +45,7 @@ class IBotPositionRepository(ABC):
         close_order_id: str | None = None,
         close_transaction_hash: str | None = None,
         close_requested_at: datetime | None = None,
-    ) -> Optional[BotPosition]:
+    ) -> BotPosition | None:
         """Set CLOSING_PENDING and update close tracking metadata. Return updated or None if missing."""
         ...
 
@@ -60,7 +58,7 @@ class IBotPositionRepository(ABC):
         close_fees: Decimal | None = None,
         close_order_id: str | None = None,
         close_transaction_hash: str | None = None,
-    ) -> Optional[BotPosition]:
+    ) -> BotPosition | None:
         """Set a CLOSING_PENDING position to CLOSED with optional close fields. Return updated or None."""
         ...
 
@@ -70,6 +68,6 @@ class IBotPositionRepository(ABC):
         position_id: UUID,
         close_proceeds_usdc: Decimal,
         close_fees: Decimal,
-    ) -> Optional[BotPosition]:
+    ) -> BotPosition | None:
         """Update a CLOSED position with real close amounts. Save and return updated. None if not found or not closed."""
         ...

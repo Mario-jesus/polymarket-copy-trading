@@ -1,11 +1,13 @@
-# -*- coding: utf-8 -*-
 """In-memory tracking session repository (keyed by session id)."""
 
 from __future__ import annotations
 
 from uuid import UUID
 
-from polymarket_copy_trading.models.tracking_session import SessionStatus, TrackingSession
+from polymarket_copy_trading.models.tracking_session import (
+    SessionStatus,
+    TrackingSession,
+)
 from polymarket_copy_trading.persistence.repositories.interfaces.tracking_session_repository import (
     ITrackingSessionRepository,
 )

@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
 """Post-tracking engine: applies BUY/SELL rule to update ledger (snapshot_t0 and post_tracking_shares)."""
 
 from __future__ import annotations
 
-import structlog
+from collections.abc import Callable
 from decimal import Decimal
-from typing import Any, Callable, Optional
+from typing import Any
+
+import structlog
 
 from polymarket_copy_trading.models.tracking_ledger import TrackingLedger
 from polymarket_copy_trading.persistence.repositories.interfaces.tracking_repository import (
@@ -23,7 +24,7 @@ class PostTrackingEngine:
         tracking_repository: ITrackingRepository,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the engine.
 
@@ -35,7 +36,7 @@ class PostTrackingEngine:
         self._repo = tracking_repository
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
-    async def apply_trade(self, wallet: str, trade: DataApiTradeDTO) -> Optional[TrackingLedger]:
+    async def apply_trade(self, wallet: str, trade: DataApiTradeDTO) -> TrackingLedger | None:
         """Apply BUY/SELL rule to the ledger for this trade's (wallet, asset).
 
         BUY: add size to post_tracking_shares.

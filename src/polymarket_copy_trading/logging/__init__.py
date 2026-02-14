@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Logging subpackage."""
 
 from polymarket_copy_trading.logging.config import configure_logging

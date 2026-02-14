@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Base notification strategy."""
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class BaseNotificationStrategy(ABC):
     """Abstract base class for notification strategies."""
 
-    def __init__(self, settings: "Settings"):
+    def __init__(self, settings: Settings):
         """
         Initialize the base strategy.
 

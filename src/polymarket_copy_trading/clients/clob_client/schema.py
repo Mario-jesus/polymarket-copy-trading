@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 """Schema for Polymarket CLOB (py_clob_client)."""
 
 from __future__ import annotations
 
-from typing import TypedDict, List, Literal
+from typing import Literal, TypedDict
 
 Side = Literal["BUY", "SELL"]
 
@@ -26,7 +25,7 @@ class TradeSchema(TypedDict):
     bucket_index: int
     owner: str
     maker_address: str
-    maker_orders: List["MakerOrderSchema"]
+    maker_orders: list[MakerOrderSchema]
     transaction_hash: str
     trader_side: Literal["TAKER", "MAKER"]
 

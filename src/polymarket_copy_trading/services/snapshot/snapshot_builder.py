@@ -1,20 +1,23 @@
-# -*- coding: utf-8 -*-
 """Snapshot t0 builder: fetches current positions from Data API and persists to tracking ledger."""
 
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 from uuid import UUID
 
 import structlog
 
 from polymarket_copy_trading.clients.data_api import DataApiClient, PositionSchema
 from polymarket_copy_trading.models.tracking_ledger import TrackingLedger
-from polymarket_copy_trading.models.tracking_session import SessionStatus, TrackingSession
+from polymarket_copy_trading.models.tracking_session import (
+    SessionStatus,
+    TrackingSession,
+)
 from polymarket_copy_trading.persistence.repositories.interfaces.tracking_repository import (
     ITrackingRepository,
 )
@@ -30,14 +33,14 @@ class SnapshotResult:
 
     wallet: str
     success: bool
-    ledgers_updated: List[TrackingLedger]
+    ledgers_updated: list[TrackingLedger]
     """Ledgers created or updated with snapshot_t0_shares; post_tracking_shares set to 0."""
-    error: Optional[str] = None
-    session_id: Optional[UUID] = None
+    error: str | None = None
+    session_id: UUID | None = None
     """TrackingSession id for the session that ran this snapshot."""
 
 
-def _parse_position(p: PositionSchema) -> Optional[Tuple[str, float]]:
+def _parse_position(p: PositionSchema) -> tuple[str, float] | None:
     """Extract (asset, size) from a Data API position. None if invalid."""
     asset = p.get("asset")
     size_raw = p.get("size")
@@ -63,7 +66,7 @@ class SnapshotBuilderService:
         tracking_session_repository: ITrackingSessionRepository,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the snapshot builder.
 
@@ -95,8 +98,8 @@ class SnapshotBuilderService:
             SnapshotResult with success, ledgers_updated, and optional error.
         """
         wallet = wallet.strip()
-        ledgers: List[TrackingLedger] = []
-        aggregated: Dict[str, float] = defaultdict(float)
+        ledgers: list[TrackingLedger] = []
+        aggregated: dict[str, float] = defaultdict(float)
 
         self._logger.debug(
             "snapshot_t0_started",
@@ -164,7 +167,7 @@ class SnapshotBuilderService:
                 await self._repo.save(updated)
                 ledgers.append(updated)
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             session = session.with_snapshot_completed(now, source="positions")
             await self._session_repo.save(session)
 
@@ -182,7 +185,7 @@ class SnapshotBuilderService:
                 session_id=session.id,
             )
         except Exception as e:  # pragma: no cover
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             session = session.with_ended(now, status=SessionStatus.ERROR)
             await self._session_repo.save(session)
 

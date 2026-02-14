@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Entry point for the copy-trading application.
 
@@ -11,16 +10,18 @@ Notebook usage:
     from polymarket_copy_trading.main import run
     await run()  # Interrupt kernel to stop; system will shut down on CancelledError.
 """
+
 from __future__ import annotations
 
 import asyncio
 import signal
-import structlog
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from polymarket_copy_trading.DI import Container
+import structlog
+
 from polymarket_copy_trading.config import get_settings
+from polymarket_copy_trading.DI import Container
 from polymarket_copy_trading.exceptions import MissingRequiredConfigError
 from polymarket_copy_trading.logging.config import configure_logging
 from polymarket_copy_trading.notifications.types import NotificationMessage
@@ -113,9 +114,7 @@ async def run() -> None:
     finally:
         active = await tracking_session_repo.get_active_for_wallet(target_wallet)
         if active is not None:
-            await tracking_session_repo.save(
-                active.with_ended(datetime.now(timezone.utc))
-            )
+            await tracking_session_repo.save(active.with_ended(datetime.now(UTC)))
         track_task.cancel()
         try:
             await track_task

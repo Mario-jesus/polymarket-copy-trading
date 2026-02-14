@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Utility modules."""
 
 from polymarket_copy_trading.utils.dedupe import trade_key

@@ -1,25 +1,25 @@
-# -*- coding: utf-8 -*-
 """Order execution service."""
 
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
+
 import structlog
-from typing import TYPE_CHECKING, Any, List, Optional, Callable
-
 from py_clob_client.clob_types import MarketOrderArgs, OrderType  # type: ignore[import-untyped]
-from py_clob_client.order_builder.constants import BUY, SELL  # type: ignore[import-untyped]
 from py_clob_client.exceptions import PolyApiException  # type: ignore[import-untyped]
+from py_clob_client.order_builder.constants import BUY, SELL  # type: ignore[import-untyped]
 
-from polymarket_copy_trading.utils import mask_address
 from polymarket_copy_trading.services.order_execution.dto import (
     OrderExecutionResult,
     OrderResponse,
 )
+from polymarket_copy_trading.utils import mask_address
 
 if TYPE_CHECKING:
-    from polymarket_copy_trading.config import Settings
     from polymarket_copy_trading.clients import AsyncClobClient, DataApiClient
+    from polymarket_copy_trading.config import Settings
 
 
 class MarketOrderExecutionService:
@@ -27,12 +27,12 @@ class MarketOrderExecutionService:
 
     def __init__(
         self,
-        settings: "Settings",
-        clob_client: "AsyncClobClient",
-        data_api: "DataApiClient",
+        settings: Settings,
+        clob_client: AsyncClobClient,
+        data_api: DataApiClient,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         self._settings = settings
         self._client = clob_client
@@ -44,9 +44,9 @@ class MarketOrderExecutionService:
         token_id: str,
         amount: float,
         *,
-        order_type: OrderType = OrderType.FOK, # type: ignore[arg-type]
+        order_type: OrderType = OrderType.FOK,  # type: ignore[arg-type]
         **kwargs: Any,
-    ) -> "OrderExecutionResult[OrderResponse]":
+    ) -> OrderExecutionResult[OrderResponse]:
         """Place a market BUY order for the given USDC amount.
 
         Args:
@@ -61,7 +61,13 @@ class MarketOrderExecutionService:
         result = OrderExecutionResult[OrderResponse]()
         try:
             signed = await self._client.create_market_order(
-                order_args=MarketOrderArgs(token_id=token_id.strip(), amount=float(amount), side=BUY, order_type=order_type, **kwargs)
+                order_args=MarketOrderArgs(
+                    token_id=token_id.strip(),
+                    amount=float(amount),
+                    side=BUY,
+                    order_type=order_type,
+                    **kwargs,
+                )
             )
             resp = await self._client.post_order(signed, order_type)
             result.response = OrderResponse.from_response(resp)
@@ -104,9 +110,9 @@ class MarketOrderExecutionService:
         token_id: str,
         amount: float,
         *,
-        order_type: OrderType = OrderType.FOK, # type: ignore[arg-type]
+        order_type: OrderType = OrderType.FOK,  # type: ignore[arg-type]
         **kwargs: Any,
-    ) -> "OrderExecutionResult[OrderResponse]":
+    ) -> OrderExecutionResult[OrderResponse]:
         """Place a market BUY order for the given number of shares.
 
         Fetches the current BUY price (best ask) via get_price, converts shares to USDC
@@ -191,21 +197,19 @@ class MarketOrderExecutionService:
         *,
         order_type: OrderType = OrderType.FOK,  # type: ignore[arg-type]
         **kwargs: Any,
-    ) -> "OrderExecutionResult[OrderResponse]":
+    ) -> OrderExecutionResult[OrderResponse]:
         """Place a market BUY for the configured minimum USDC amount (e.g. $1)."""
         minimum_amount = self._settings.order_execution.minimum_amount
-        return await self.place_buy_usdc(
-            token_id, minimum_amount, order_type=order_type, **kwargs
-        )
+        return await self.place_buy_usdc(token_id, minimum_amount, order_type=order_type, **kwargs)
 
     async def place_sell_usdc(
         self,
         token_id: str,
         amount: float,
         *,
-        order_type: OrderType = OrderType.FOK, # type: ignore[arg-type]
+        order_type: OrderType = OrderType.FOK,  # type: ignore[arg-type]
         **kwargs: Any,
-    ) -> "OrderExecutionResult[OrderResponse]":
+    ) -> OrderExecutionResult[OrderResponse]:
         """Place a market SELL order to receive approximately the given USDC amount.
 
         Fetches the current SELL price (best bid) via get_price, converts USDC to shares
@@ -292,9 +296,9 @@ class MarketOrderExecutionService:
         token_id: str,
         amount: float,
         *,
-        order_type: OrderType = OrderType.FOK, # type: ignore[arg-type]
+        order_type: OrderType = OrderType.FOK,  # type: ignore[arg-type]
         **kwargs: Any,
-    ) -> "OrderExecutionResult[OrderResponse]":
+    ) -> OrderExecutionResult[OrderResponse]:
         """Place a market SELL order for the given number of shares.
 
         Args:
@@ -309,7 +313,13 @@ class MarketOrderExecutionService:
         result = OrderExecutionResult[OrderResponse]()
         try:
             signed = await self._client.create_market_order(
-                order_args=MarketOrderArgs(token_id=token_id.strip(), amount=float(amount), side=SELL, order_type=order_type, **kwargs)
+                order_args=MarketOrderArgs(
+                    token_id=token_id.strip(),
+                    amount=float(amount),
+                    side=SELL,
+                    order_type=order_type,
+                    **kwargs,
+                )
             )
             resp = await self._client.post_order(signed, order_type)
             result.response = OrderResponse.from_response(resp)
@@ -351,9 +361,9 @@ class MarketOrderExecutionService:
         self,
         token_id: str,
         *,
-        order_type: OrderType = OrderType.FOK, # type: ignore[arg-type]
+        order_type: OrderType = OrderType.FOK,  # type: ignore[arg-type]
         **kwargs: Any,
-    ) -> "OrderExecutionResult[OrderResponse]":
+    ) -> OrderExecutionResult[OrderResponse]:
         """Close the full position for the given token by selling all shares.
 
         Fetches positions via Data API (get_positions), finds the position whose
@@ -385,7 +395,9 @@ class MarketOrderExecutionService:
                     position = p
                     break
             if position is None:
-                result.error = f"No position found for token_id={token_id} and user={mask_address(user)}"
+                result.error = (
+                    f"No position found for token_id={token_id} and user={mask_address(user)}"
+                )
                 self._logger.warning(
                     "close_full_position_not_found",
                     token_id=token_id,
@@ -425,9 +437,9 @@ class MarketOrderExecutionService:
     async def close_all_positions(
         self,
         *,
-        order_type: OrderType = OrderType.FOK, # type: ignore[arg-type]
+        order_type: OrderType = OrderType.FOK,  # type: ignore[arg-type]
         **kwargs: Any,
-    ) -> "OrderExecutionResult[List[OrderResponse]]":
+    ) -> OrderExecutionResult[list[OrderResponse]]:
         """Close all positions for the given user.
 
         Fetches positions via Data API (get_positions), then sells all shares for each
@@ -443,7 +455,7 @@ class MarketOrderExecutionService:
             OrderExecutionResult: success=True only if all positions were closed
             successfully (or there were no positions); error contains a summary if any failed.
         """
-        result = OrderExecutionResult[List[OrderResponse]]()
+        result = OrderExecutionResult[list[OrderResponse]]()
         user = self._settings.polymarket.funder
 
         try:
@@ -472,7 +484,7 @@ class MarketOrderExecutionService:
                 return result
 
             errors: list[str] = []
-            responses: List["OrderResponse"] = []
+            responses: list[OrderResponse] = []
             closed = 0
             for token_id, size_f in to_close:
                 single = await self.place_sell_shares(

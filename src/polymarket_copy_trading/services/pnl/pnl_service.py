@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """PnLService: pure computation of realized and net PnL from BotPosition.
 
 No I/O, no side effects. Used by TradeConfirmedNotifier for position_closed notifications.
@@ -8,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from polymarket_copy_trading.models.bot_position import BotPosition
@@ -18,16 +17,16 @@ if TYPE_CHECKING:
 class PnLResult:
     """Result of PnL computation for a closed position."""
 
-    realized_pnl_usdc: Optional[Decimal]
+    realized_pnl_usdc: Decimal | None
     """Gross PnL (close_proceeds - entry_cost). None if OPEN or missing data."""
 
-    net_pnl_usdc: Optional[Decimal]
+    net_pnl_usdc: Decimal | None
     """Net PnL after fees. None if OPEN or missing data."""
 
-    entry_cost_usdc: Optional[Decimal]
+    entry_cost_usdc: Decimal | None
     """Total USDC cost to open (cost basis)."""
 
-    close_proceeds_usdc: Optional[Decimal]
+    close_proceeds_usdc: Decimal | None
     """USDC received when closed."""
 
     total_fees_usdc: Decimal
@@ -37,7 +36,7 @@ class PnLResult:
 class PnLService:
     """Sync, pure service for computing PnL from a BotPosition."""
 
-    def compute(self, position: "BotPosition") -> PnLResult:
+    def compute(self, position: BotPosition) -> PnLResult:
         """Compute PnL from position. No I/O, no side effects.
 
         For OPEN positions, realized_pnl_usdc and net_pnl_usdc are None.

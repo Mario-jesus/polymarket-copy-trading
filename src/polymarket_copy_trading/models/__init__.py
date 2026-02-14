@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Domain models."""
 
 from polymarket_copy_trading.models.bot_position import BotPosition, PositionStatus

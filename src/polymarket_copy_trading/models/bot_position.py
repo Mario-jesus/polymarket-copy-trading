@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Bot position: a single open or closed position opened by the bot.
 
 Used to track positions for closing in FIFO order (oldest opened_at first).
@@ -9,10 +8,9 @@ Fields for entry_cost_usdc, close_proceeds_usdc and fees support PnL and net PnL
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
 from uuid import UUID, uuid4
 
 
@@ -43,25 +41,25 @@ class BotPosition:
     """PositionId / token_id; for CLOB execution and reconciliation."""
 
     shares_held: Decimal
-    entry_price: Optional[Decimal]
+    entry_price: Decimal | None
     status: PositionStatus
 
     opened_at: datetime
-    closed_at: Optional[datetime]
+    closed_at: datetime | None
     """None while OPEN; set when status is CLOSED."""
 
     # PnL / cost basis (for realized and net PnL later)
-    entry_cost_usdc: Optional[Decimal] = None
+    entry_cost_usdc: Decimal | None = None
     """Total USDC cost to open (shares cost + open fees). Cost basis."""
-    close_proceeds_usdc: Optional[Decimal] = None
+    close_proceeds_usdc: Decimal | None = None
     """USDC received when closed (after fees). Set when status is CLOSED."""
     fees: Decimal = Decimal("0")
     """Total fees in USDC (open + close). For reporting and net PnL."""
-    close_order_id: Optional[str] = None
+    close_order_id: str | None = None
     """Last close order id sent to CLOB (if any)."""
-    close_transaction_hash: Optional[str] = None
+    close_transaction_hash: str | None = None
     """Last close transaction hash observed/sent (if any)."""
-    close_requested_at: Optional[datetime] = None
+    close_requested_at: datetime | None = None
     """Timestamp when close request was last sent."""
     close_attempts: int = 0
     """Number of close requests sent for this position."""
@@ -99,9 +97,9 @@ class BotPosition:
     def with_closing_pending(
         self,
         *,
-        close_order_id: Optional[str] = None,
-        close_transaction_hash: Optional[str] = None,
-        close_requested_at: Optional[datetime] = None,
+        close_order_id: str | None = None,
+        close_transaction_hash: str | None = None,
+        close_requested_at: datetime | None = None,
     ) -> BotPosition:
         """Return a copy with status CLOSING_PENDING and close tracking metadata."""
         return BotPosition(
@@ -119,20 +117,20 @@ class BotPosition:
             fees=self.fees,
             close_order_id=close_order_id or self.close_order_id,
             close_transaction_hash=close_transaction_hash or self.close_transaction_hash,
-            close_requested_at=close_requested_at or datetime.now(timezone.utc),
+            close_requested_at=close_requested_at or datetime.now(UTC),
             close_attempts=self.close_attempts + 1,
         )
 
     def with_closed(
         self,
-        closed_at: Optional[datetime] = None,
-        close_proceeds_usdc: Optional[Decimal] = None,
-        close_fees: Optional[Decimal] = None,
-        close_order_id: Optional[str] = None,
-        close_transaction_hash: Optional[str] = None,
+        closed_at: datetime | None = None,
+        close_proceeds_usdc: Decimal | None = None,
+        close_fees: Decimal | None = None,
+        close_order_id: str | None = None,
+        close_transaction_hash: str | None = None,
     ) -> BotPosition:
         """Return a copy with status CLOSED, closed_at set, and optional close amounts."""
-        now = closed_at or datetime.now(timezone.utc)
+        now = closed_at or datetime.now(UTC)
         new_fees = self.fees + (close_fees or Decimal("0"))
         return BotPosition(
             id=self.id,
@@ -145,7 +143,9 @@ class BotPosition:
             opened_at=self.opened_at,
             closed_at=now,
             entry_cost_usdc=self.entry_cost_usdc,
-            close_proceeds_usdc=close_proceeds_usdc if close_proceeds_usdc is not None else self.close_proceeds_usdc,
+            close_proceeds_usdc=close_proceeds_usdc
+            if close_proceeds_usdc is not None
+            else self.close_proceeds_usdc,
             fees=new_fees,
             close_order_id=close_order_id or self.close_order_id,
             close_transaction_hash=close_transaction_hash or self.close_transaction_hash,
@@ -161,7 +161,7 @@ class BotPosition:
     def is_closing_pending(self) -> bool:
         return self.status == PositionStatus.CLOSING_PENDING
 
-    def realized_pnl_usdc(self) -> Optional[Decimal]:
+    def realized_pnl_usdc(self) -> Decimal | None:
         """Realized PnL in USDC when closed. None if OPEN or missing cost/proceeds."""
         if self.status != PositionStatus.CLOSED:
             return None
@@ -169,7 +169,7 @@ class BotPosition:
             return None
         return self.close_proceeds_usdc - self.entry_cost_usdc
 
-    def net_pnl_usdc(self) -> Optional[Decimal]:
+    def net_pnl_usdc(self) -> Decimal | None:
         """Net PnL in USDC (after fees) when closed. None if OPEN or missing data."""
         pnl = self.realized_pnl_usdc()
         if pnl is None:
@@ -183,12 +183,12 @@ class BotPosition:
         tracked_wallet: str,
         asset: str,
         shares_held: Decimal = Decimal("0"),
-        entry_price: Optional[Decimal] = None,
-        entry_cost_usdc: Optional[Decimal] = None,
-        fees: Optional[Decimal] = None,
+        entry_price: Decimal | None = None,
+        entry_cost_usdc: Decimal | None = None,
+        fees: Decimal | None = None,
         *,
-        id: Optional[UUID] = None,
-        opened_at: Optional[datetime] = None,
+        id: UUID | None = None,
+        opened_at: datetime | None = None,
     ) -> BotPosition:
         """Create a new OPEN position (e.g. when bot opens at a threshold).
 
@@ -197,7 +197,7 @@ class BotPosition:
         """
         if shares_held <= 0:
             raise ValueError("shares_held must be > 0 when opening a position")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return cls(
             id=id or uuid4(),
             ledger_id=ledger_id,

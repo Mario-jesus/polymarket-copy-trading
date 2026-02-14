@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 """TradeFailedNotifier: listens to CopyTradeFailedEvent and sends notifications."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -14,7 +14,9 @@ from polymarket_copy_trading.notifications.types import NotificationMessage
 if TYPE_CHECKING:
     from bubus import EventBus  # type: ignore[import-untyped]
 
-    from polymarket_copy_trading.notifications.notification_manager import NotificationService
+    from polymarket_copy_trading.notifications.notification_manager import (
+        NotificationService,
+    )
 
 
 _REASON_LABELS = {
@@ -28,7 +30,7 @@ _REASON_LABELS = {
 }
 
 
-def _dt_to_str(v: Optional[datetime]) -> Optional[str]:
+def _dt_to_str(v: datetime | None) -> str | None:
     """Convert datetime to ISO string for payload."""
     if v is None:
         return None
@@ -40,14 +42,14 @@ class TradeFailedNotifier:
 
     def __init__(
         self,
-        notification_service: "NotificationService",
+        notification_service: NotificationService,
         event_bus: Any,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         self._notification_service = notification_service
-        self._event_bus: "EventBus" = event_bus
+        self._event_bus: EventBus = event_bus
         self._logger = get_logger(logger_name or self.__class__.__name__)
 
     def start(self) -> None:

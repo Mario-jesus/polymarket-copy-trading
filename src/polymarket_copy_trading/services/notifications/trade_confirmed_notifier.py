@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 """TradeConfirmedNotifier: builds and sends notifications when a trade is confirmed."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -14,18 +14,20 @@ from polymarket_copy_trading.notifications.types import NotificationMessage
 if TYPE_CHECKING:
     from polymarket_copy_trading.clients.clob_client.schema import TradeSchema
     from polymarket_copy_trading.models.bot_position import BotPosition
-    from polymarket_copy_trading.notifications.notification_manager import NotificationService
+    from polymarket_copy_trading.notifications.notification_manager import (
+        NotificationService,
+    )
     from polymarket_copy_trading.services.pnl import PnLService
 
 
-def _dec_to_str(v: Optional[Decimal]) -> Optional[str]:
+def _dec_to_str(v: Decimal | None) -> str | None:
     """Convert Decimal to string for payload."""
     if v is None:
         return None
     return str(v)
 
 
-def _dt_to_str(v: Optional[datetime]) -> Optional[str]:
+def _dt_to_str(v: datetime | None) -> str | None:
     """Convert datetime to ISO string for payload."""
     if v is None:
         return None
@@ -33,10 +35,10 @@ def _dt_to_str(v: Optional[datetime]) -> Optional[str]:
 
 
 def _build_trade_payload(
-    position: "BotPosition",
-    trade: "TradeSchema",
+    position: BotPosition,
+    trade: TradeSchema,
     is_open: bool,
-    pnl_result: Optional[Any] = None,
+    pnl_result: Any | None = None,
 ) -> dict[str, Any]:
     """Build trade dict for EventNotificationStyler._render_trade."""
     side = "BUY" if is_open else "SELL"
@@ -70,11 +72,11 @@ class TradeConfirmedNotifier:
 
     def __init__(
         self,
-        notification_service: "NotificationService",
-        pnl_service: "PnLService",
+        notification_service: NotificationService,
+        pnl_service: PnLService,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         self._notification_service = notification_service
         self._pnl_service = pnl_service
@@ -82,8 +84,8 @@ class TradeConfirmedNotifier:
 
     def notify(
         self,
-        position: "BotPosition",
-        trade: "TradeSchema",
+        position: BotPosition,
+        trade: TradeSchema,
         is_open: bool,
     ) -> None:
         """Send notification for confirmed position open or close.

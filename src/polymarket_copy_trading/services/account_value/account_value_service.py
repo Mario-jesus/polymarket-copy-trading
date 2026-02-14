@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 """Service to compute total Polymarket account value (USDC.e cash + positions value)."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -39,11 +39,11 @@ class AccountValueService:
 
     def __init__(
         self,
-        rpc_client: "RpcClient",
-        data_api: "DataApiClient",
+        rpc_client: RpcClient,
+        data_api: DataApiClient,
         *,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the service.
 
@@ -61,7 +61,7 @@ class AccountValueService:
         self,
         wallet: str,
         *,
-        market: Optional[list[str]] = None,
+        market: list[str] | None = None,
     ) -> AccountValueResult:
         """Get total value of a Polymarket wallet (cash + positions).
 

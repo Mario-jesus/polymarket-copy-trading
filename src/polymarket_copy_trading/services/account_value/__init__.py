@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Account value service: total wallet value (cash + positions)."""
 
 from polymarket_copy_trading.services.account_value.account_value_service import (

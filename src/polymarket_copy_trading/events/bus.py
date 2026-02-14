@@ -1,13 +1,10 @@
-# -*- coding: utf-8 -*-
 """Application event bus (bubus). Singleton instance for publish/subscribe."""
 
 from __future__ import annotations
 
-from typing import Optional
-
 from bubus import EventBus  # type: ignore[import-untyped]
 
-_event_bus: Optional[EventBus] = None
+_event_bus: EventBus | None = None
 
 
 def get_event_bus() -> EventBus:

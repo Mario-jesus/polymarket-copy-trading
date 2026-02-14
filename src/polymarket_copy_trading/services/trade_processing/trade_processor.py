@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
 """Service that processes trade messages from the queue (log + optional post-tracking)."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
+
 import structlog
-from typing import Any, Callable, Optional, TYPE_CHECKING
 
 from polymarket_copy_trading.queue.messages import QueueMessage
 from polymarket_copy_trading.services.tracking_trader.trade_dto import DataApiTradeDTO
@@ -23,10 +24,10 @@ class TradeProcessorService:
     def __init__(
         self,
         *,
-        post_tracking_engine: Optional["PostTrackingEngine"] = None,
-        copy_trading_engine: Optional["CopyTradingEngineService"] = None,
+        post_tracking_engine: PostTrackingEngine | None = None,
+        copy_trading_engine: CopyTradingEngineService | None = None,
         get_logger: Callable[[str], Any] = structlog.get_logger,
-        logger_name: Optional[str] = None,
+        logger_name: str | None = None,
     ) -> None:
         """Initialize the processor.
 
@@ -55,10 +56,13 @@ class TradeProcessorService:
         if self._post_tracking_engine is not None and wallet and not is_snapshot:
             ledger_after = await self._post_tracking_engine.apply_trade(wallet, trade)
 
-        if self._copy_trading_engine is not None and wallet and not is_snapshot and ledger_after is not None:
-            await self._copy_trading_engine.evaluate_and_execute(
-                wallet, trade, ledger_after
-            )
+        if (
+            self._copy_trading_engine is not None
+            and wallet
+            and not is_snapshot
+            and ledger_after is not None
+        ):
+            await self._copy_trading_engine.evaluate_and_execute(wallet, trade, ledger_after)
 
         self._logger.info(
             "trade_processed",
