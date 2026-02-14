@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -24,6 +25,13 @@ def _dec_to_str(v: Optional[Decimal]) -> Optional[str]:
     return str(v)
 
 
+def _dt_to_str(v: Optional[datetime]) -> Optional[str]:
+    """Convert datetime to ISO string for payload."""
+    if v is None:
+        return None
+    return v.isoformat()
+
+
 def _build_trade_payload(
     position: "BotPosition",
     trade: "TradeSchema",
@@ -43,6 +51,10 @@ def _build_trade_payload(
         "condition_id": trade.get("condition_id") or trade.get("conditionId"),
         "position_id": str(position.id),
         "entry_cost_usdc": _dec_to_str(position.entry_cost_usdc),
+        "close_order_id": position.close_order_id,
+        "close_transaction_hash": position.close_transaction_hash,
+        "close_requested_at": _dt_to_str(position.close_requested_at),
+        "close_attempts": position.close_attempts,
     }
     if not is_open:
         payload["close_proceeds_usdc"] = _dec_to_str(position.close_proceeds_usdc)

@@ -41,14 +41,27 @@ class IBotPositionRepository(ABC):
         ...
 
     @abstractmethod
-    async def mark_closed(
+    async def mark_closing_pending(
+        self,
+        position_id: UUID,
+        close_order_id: str | None = None,
+        close_transaction_hash: str | None = None,
+        close_requested_at: datetime | None = None,
+    ) -> Optional[BotPosition]:
+        """Set CLOSING_PENDING and update close tracking metadata. Return updated or None if missing."""
+        ...
+
+    @abstractmethod
+    async def confirm_closed(
         self,
         position_id: UUID,
         closed_at: datetime | None = None,
         close_proceeds_usdc: Decimal | None = None,
         close_fees: Decimal | None = None,
+        close_order_id: str | None = None,
+        close_transaction_hash: str | None = None,
     ) -> Optional[BotPosition]:
-        """Load position by id, set status CLOSED and closed_at (and optional PnL fields), save and return updated. None if not found."""
+        """Set a CLOSING_PENDING position to CLOSED with optional close fields. Return updated or None."""
         ...
 
     @abstractmethod

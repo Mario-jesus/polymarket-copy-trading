@@ -7,6 +7,7 @@ import asyncio
 import structlog
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Callable, List, Literal, Optional
 from uuid import UUID
@@ -151,6 +152,8 @@ class OrderAnalysisWorker:
         transaction_hash: Optional[str] = None,
         amount: Optional[float] = None,
         amount_kind: Optional[Literal["usdc", "shares"]] = None,
+        close_requested_at: Optional[datetime] = None,
+        close_attempts: Optional[int] = None,
     ) -> None:
         """Emit CopyTradeFailedEvent for TradeFailedNotifier."""
         event = CopyTradeFailedEvent(
@@ -164,6 +167,8 @@ class OrderAnalysisWorker:
             transaction_hash=transaction_hash,
             amount=amount,
             amount_kind=amount_kind,
+            close_requested_at=close_requested_at,
+            close_attempts=close_attempts,
         )
         self._event_bus.dispatch(event)
 
@@ -218,6 +223,7 @@ class OrderAnalysisWorker:
             asset=pending.asset,
             attempts=self._max_attempts,
         )
+        position = await self._position_repo.get(pending.position_id)
         self._emit_failed(
             reason="trade_not_found",
             position_id=pending.position_id,
@@ -227,6 +233,8 @@ class OrderAnalysisWorker:
             is_open=pending.is_open,
             error_message=f"Trade not found after {self._max_attempts} attempts",
             transaction_hash=pending.transaction_hash,
+            close_requested_at=position.close_requested_at if position is not None else None,
+            close_attempts=position.close_attempts if position is not None else None,
         )
 
     def _trade_matches_pending(self, trade: TradeSchema, pending: PendingOrder) -> bool:
@@ -314,6 +322,8 @@ class OrderAnalysisWorker:
                 is_open=pending.is_open,
                 error_message=str(e),
                 transaction_hash=pending.transaction_hash,
+                close_requested_at=position.close_requested_at,
+                close_attempts=position.close_attempts,
             )
             return None
 
@@ -321,7 +331,13 @@ class OrderAnalysisWorker:
         if pending.is_open:
             updated = await self._update_open_position(position, notional, fee_usdc)
         else:
-            updated = await self._update_closed_position(position, notional, fee_usdc)
+            updated = await self._update_closed_position(
+                position,
+                close_proceeds_usdc=notional,
+                close_fee_usdc=fee_usdc,
+                close_order_id=pending.order_id,
+                close_transaction_hash=trade.get("transaction_hash"),
+            )
             if updated is None:
                 self._emit_failed(
                     reason="position_update_failed",
@@ -330,7 +346,9 @@ class OrderAnalysisWorker:
                     tracked_wallet=pending.tracked_wallet,
                     asset=pending.asset,
                     is_open=False,
-                    error_message="update_closed_pnl returned None",
+                    error_message="confirm_closed returned None",
+                    close_requested_at=position.close_requested_at,
+                    close_attempts=position.close_attempts,
                 )
 
         self._logger.info(
@@ -357,16 +375,26 @@ class OrderAnalysisWorker:
         await self._position_repo.save(updated)
         return updated
 
-    async def _update_closed_position(self, position: "BotPosition", close_proceeds_usdc: Decimal, close_fee_usdc: Decimal) -> Optional["BotPosition"]:
-        """Update a CLOSED position with real close proceeds and fees."""
-        updated = await self._position_repo.update_closed_pnl(
+    async def _update_closed_position(
+        self,
+        position: "BotPosition",
+        close_proceeds_usdc: Decimal,
+        close_fee_usdc: Decimal,
+        close_order_id: Optional[str],
+        close_transaction_hash: Optional[str],
+    ) -> Optional["BotPosition"]:
+        """Confirm a CLOSING_PENDING position as CLOSED with real close proceeds and fees."""
+        updated = await self._position_repo.confirm_closed(
             position.id,
             close_proceeds_usdc=close_proceeds_usdc,
             close_fees=close_fee_usdc,
+            close_order_id=close_order_id,
+            close_transaction_hash=close_transaction_hash,
         )
         if updated is None:
             self._logger.warning(
-                "order_analysis_update_closed_failed",
+                "order_analysis_confirm_closed_failed",
                 position_id=str(position.id),
+                status=position.status.value,
             )
         return updated

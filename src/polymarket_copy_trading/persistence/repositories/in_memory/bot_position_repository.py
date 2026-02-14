@@ -55,21 +55,50 @@ class InMemoryBotPositionRepository(IBotPositionRepository):
             key=_by_opened_at,
         )
 
-    async def mark_closed(
+    async def mark_closing_pending(
+        self,
+        position_id: UUID,
+        close_order_id: Optional[str] = None,
+        close_transaction_hash: Optional[str] = None,
+        close_requested_at: Optional[datetime] = None,
+    ) -> Optional[BotPosition]:
+        """Set status CLOSING_PENDING and update close tracking metadata."""
+        position = await self.get(position_id)
+        if position is None:
+            return None
+        if not position.is_open and not position.is_closing_pending:
+            return position
+        updated = position.with_closing_pending(
+            close_order_id=close_order_id,
+            close_transaction_hash=close_transaction_hash,
+            close_requested_at=close_requested_at,
+        )
+        await self.save(updated)
+        return updated
+
+    async def confirm_closed(
         self,
         position_id: UUID,
         closed_at: Optional[datetime] = None,
         close_proceeds_usdc: Optional[Decimal] = None,
         close_fees: Optional[Decimal] = None,
+        close_order_id: Optional[str] = None,
+        close_transaction_hash: Optional[str] = None,
     ) -> Optional[BotPosition]:
-        """Load position by id, set status CLOSED with optional closed_at and PnL fields, save and return updated."""
+        """Set a CLOSING_PENDING position to CLOSED with optional closed_at and PnL fields."""
         position = await self.get(position_id)
-        if position is None or not position.is_open:
+        if position is None:
+            return None
+        if position.is_open:
+            return None
+        if not position.is_closing_pending:
             return position
         updated = position.with_closed(
             closed_at=closed_at,
             close_proceeds_usdc=close_proceeds_usdc,
             close_fees=close_fees,
+            close_order_id=close_order_id,
+            close_transaction_hash=close_transaction_hash,
         )
         await self.save(updated)
         return updated

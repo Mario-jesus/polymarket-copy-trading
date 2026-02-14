@@ -271,44 +271,18 @@ class CopyTradingEngineService:
 
         n = min(result.positions_to_close, open_positions_count)
         to_close = open_positions[:n]
-        closed_at = datetime.now(timezone.utc)
+        close_requests_sent = 0
 
         for position in to_close:
             exec_result = await self._market_exec.place_sell_shares(
                 token_id=asset,
                 amount=float(position.shares_held),
             )
-            await self._position_repo.mark_closed(
-                position.id,
-                closed_at=closed_at,
-                close_proceeds_usdc=None,
-                close_fees=None,
-            )
             resp = exec_result.response
             tx_hash = (resp.transactions_hashes[0] if resp and resp.transactions_hashes else None)
-            self._emit_order_placed(
-                order_id=resp.order_id if resp else None,
-                position_id=position.id,
-                tracked_wallet=wallet,
-                asset=asset,
-                is_open=False,
-                amount=float(position.shares_held),
-                amount_kind="shares",
-                success=exec_result.success,
-                transaction_hash=tx_hash,
-            )
-            if exec_result.success:
-                self._logger.info(
-                    "copy_engine_position_closed",
-                    wallet_masked=mask_address(wallet),
-                    asset=asset,
-                    position_id=str(position.id),
-                    shares_sold=float(position.shares_held),
-                    reason=result.reason,
-                )
-            else:
+            if not exec_result.success:
                 self._logger.warning(
-                    "copy_engine_sell_failed_but_marked_closed",
+                    "copy_engine_sell_failed",
                     wallet_masked=mask_address(wallet),
                     asset=asset,
                     position_id=str(position.id),
@@ -325,11 +299,65 @@ class CopyTradingEngineService:
                     transaction_hash=tx_hash,
                     amount=float(position.shares_held),
                     amount_kind="shares",
+                    close_requested_at=position.close_requested_at,
+                    close_attempts=position.close_attempts,
                 )
+                continue
 
-        await self._tracking_repo.update_close_stage_ref(
-            wallet, asset, ledger.post_tracking_shares
-        )
+            pending = await self._position_repo.mark_closing_pending(
+                position.id,
+                close_order_id=resp.order_id if resp else None,
+                close_transaction_hash=tx_hash,
+                close_requested_at=datetime.now(timezone.utc),
+            )
+            if pending is None:
+                self._logger.warning(
+                    "copy_engine_position_not_found_for_close",
+                    wallet_masked=mask_address(wallet),
+                    asset=asset,
+                    position_id=str(position.id),
+                )
+                self._emit_order_failed(
+                    reason="position_not_found",
+                    position_id=position.id,
+                    order_id=resp.order_id if resp else None,
+                    tracked_wallet=wallet,
+                    asset=asset,
+                    is_open=False,
+                    error_message="Position not found when marking CLOSING_PENDING",
+                    transaction_hash=tx_hash,
+                    amount=float(position.shares_held),
+                    amount_kind="shares",
+                    close_requested_at=position.close_requested_at,
+                    close_attempts=position.close_attempts,
+                )
+                continue
+
+            self._emit_order_placed(
+                order_id=resp.order_id if resp else None,
+                position_id=position.id,
+                tracked_wallet=wallet,
+                asset=asset,
+                is_open=False,
+                amount=float(position.shares_held),
+                amount_kind="shares",
+                success=exec_result.success,
+                transaction_hash=tx_hash,
+            )
+            close_requests_sent += 1
+            self._logger.info(
+                "copy_engine_position_close_requested",
+                wallet_masked=mask_address(wallet),
+                asset=asset,
+                position_id=str(position.id),
+                shares_sold=float(position.shares_held),
+                reason=result.reason,
+            )
+
+        if close_requests_sent > 0:
+            await self._tracking_repo.update_close_stage_ref(
+                wallet, asset, ledger.post_tracking_shares
+            )
 
     def _emit_order_failed(
         self,
@@ -343,6 +371,8 @@ class CopyTradingEngineService:
         transaction_hash: Optional[str] = None,
         amount: Optional[float] = None,
         amount_kind: Optional[Literal["usdc", "shares"]] = None,
+        close_requested_at: Optional[datetime] = None,
+        close_attempts: Optional[int] = None,
     ) -> None:
         """Emit CopyTradeFailedEvent for TradeFailedNotifier."""
         if self._event_bus is None:
@@ -358,6 +388,8 @@ class CopyTradingEngineService:
             transaction_hash=transaction_hash,
             amount=amount,
             amount_kind=amount_kind,
+            close_requested_at=close_requested_at,
+            close_attempts=close_attempts,
         )
         self._event_bus.dispatch(event)
 

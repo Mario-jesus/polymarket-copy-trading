@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal, Optional
 from uuid import UUID
 
@@ -28,6 +29,8 @@ class CopyTradeFailedEvent(BaseEvent[None]):
     transaction_hash: Optional[str] = None
     amount: Optional[float] = None
     amount_kind: Optional[Literal["usdc", "shares"]] = None
+    close_requested_at: Optional[datetime] = None
+    close_attempts: Optional[int] = None
 
 
 class CopyTradeOrderPlacedEvent(BaseEvent[None]):

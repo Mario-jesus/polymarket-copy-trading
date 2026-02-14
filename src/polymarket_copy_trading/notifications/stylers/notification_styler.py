@@ -78,8 +78,8 @@ class EventNotificationStyler(NotificationStyler):
 
             f"💰 <b>Trade Details</b>\n"
             f"{'─'*12}\n"
-            f"🔑 <b>ID Position:</b> {position_id}\n"
-            f"🔗 <b>Transaction:</b> {tx_hash}\n"
+            f"🔑 <b>Position ID:</b> {position_id}\n"
+            f"🔗 <b>Transaction Hash:</b> {tx_hash}\n"
             f"📥 <b>Amount:</b> {amount_usdc} USDC\n"
             f"🪙  <b>Shares:</b> {shares}\n"
             f"💵 <b>Price:</b> {price} USDC\n\n"
@@ -101,6 +101,10 @@ class EventNotificationStyler(NotificationStyler):
         fees_usdc = self._format_amount(trade.get("fees_usdc"))
         realized_pnl = trade.get("realized_pnl_usdc")
         net_pnl = trade.get("net_pnl_usdc")
+        close_order_id = trade.get("close_order_id") or "N/A"
+        close_tx_hash = trade.get("close_transaction_hash") or tx_hash
+        close_requested_at_raw = trade.get("close_requested_at")
+        close_attempts = trade.get("close_attempts")
         condition_id = trade.get("condition_id") or "N/A"
         outcome = trade.get("outcome") or "N/A"
         time_str = self._format_datetime_now()
@@ -123,12 +127,19 @@ class EventNotificationStyler(NotificationStyler):
 
             f"💰 <b>Trade Details</b>\n"
             f"{'─'*12}\n"
-            f"🔑 <b>ID Position:</b> {position_id}\n"
-            f"🔗 <b>Transaction:</b> {tx_hash}\n"
+            f"🔑 <b>Position ID:</b> {position_id}\n"
+            f"🔗 <b>Transaction Hash:</b> {tx_hash}\n"
             f"📥 <b>Entry:</b> {entry_usdc} USDC\n"
             f"📤 <b>Close Proceeds:</b> {close_usdc} USDC\n"
             f"🪙 <b>Shares:</b> {shares}\n"
             f"🧾 <b>Fees:</b> {fees_usdc} USDC\n\n"
+
+            f"🧭 <b>Close Tracking</b>\n"
+            f"{'─'*12}\n"
+            f"📋 <b>Close Order ID:</b> {close_order_id}\n"
+            f"🔗 <b>Close Transaction Hash:</b> {close_tx_hash}\n"
+            f"⏳ <b>Close Requested At:</b> {self._format_iso_or_value(close_requested_at_raw)}\n"
+            f"🔁 <b>Close Attempts:</b> {close_attempts if close_attempts is not None else 'N/A'}\n\n"
 
             f"📈 <b>P&L</b>\n"
             f"{'─'*12}\n"
@@ -147,8 +158,12 @@ class EventNotificationStyler(NotificationStyler):
         is_open = payload.get("is_open", True)
         position_id = payload.get("position_id") or "N/A"
         order_id = payload.get("order_id") or "N/A"
+        close_order_id = payload.get("close_order_id") or order_id
         error_msg = payload.get("error_message") or "N/A"
         tx_hash = payload.get("transaction_hash") or "N/A"
+        close_tx_hash = payload.get("close_transaction_hash") or tx_hash
+        close_requested_at_raw = payload.get("close_requested_at")
+        close_attempts = payload.get("close_attempts")
         amount = payload.get("amount")
         amount_kind = payload.get("amount_kind", "")
         time_str = self._format_datetime_now()
@@ -156,7 +171,28 @@ class EventNotificationStyler(NotificationStyler):
         side_str = "BUY" if is_open else "SELL"
         amount_line = ""
         if amount is not None and amount_kind:
-            amount_line = f"📥 <b>Amount:</b> {self._format_amount(amount)} {amount_kind}\n"
+            amount_emoji = "📥" if is_open else "📤"
+            amount_line = (
+                f"{amount_emoji} <b>Amount:</b> {self._format_amount(amount)} {amount_kind}\n"
+            )
+
+        has_close_tracking = (
+            not is_open
+            or payload.get("close_order_id") is not None
+            or payload.get("close_transaction_hash") is not None
+            or payload.get("close_requested_at") is not None
+            or payload.get("close_attempts") is not None
+        )
+        close_tracking_block = ""
+        if has_close_tracking:
+            close_tracking_block = (
+                f"\n🧭 <b>Close Tracking</b>\n"
+                f"{'─'*12}\n"
+                f"📋 <b>Close Order ID:</b> {close_order_id}\n"
+                f"🔗 <b>Close Transaction Hash:</b> {close_tx_hash}\n"
+                f"⏳ <b>Close Requested At:</b> {self._format_iso_or_value(close_requested_at_raw)}\n"
+                f"🔁 <b>Close Attempts:</b> {close_attempts if close_attempts is not None else 'N/A'}\n"
+            )
 
         return (
             f"❌ <b>Trade Failed</b>\n\n"
@@ -172,11 +208,12 @@ class EventNotificationStyler(NotificationStyler):
 
             f"💰 <b>Failure Details</b>\n"
             f"{'─'*12}\n"
-            f"🔑 <b>ID Position:</b> {position_id}\n"
+            f"🔑 <b>Position ID:</b> {position_id}\n"
             f"📋 <b>Order ID:</b> {order_id}\n"
-            f"🔗 <b>Transaction:</b> {tx_hash}\n"
+            f"🔗 <b>Transaction Hash:</b> {tx_hash}\n"
             f"{amount_line}"
             f"⚠️ <b>Error:</b> {error_msg}\n\n"
+            f"{close_tracking_block}\n"
 
             f"⏰ <b>Time:</b> {time_str}"
         )
@@ -285,3 +322,16 @@ class EventNotificationStyler(NotificationStyler):
             return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
         except (OSError, OverflowError, ValueError):
             return str(value)
+
+    @staticmethod
+    def _format_iso_or_value(value: Any) -> str:
+        """Format ISO datetime strings or return readable fallback."""
+        if value is None:
+            return "N/A"
+        if isinstance(value, str):
+            try:
+                dt = datetime.fromisoformat(value)
+                return dt.isoformat()
+            except ValueError:
+                return value
+        return str(value)

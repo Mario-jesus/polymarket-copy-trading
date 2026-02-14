@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import structlog
@@ -25,6 +26,13 @@ _REASON_LABELS = {
     "parse_trade_error": "Parse trade error",
     "get_trades_error": "Get trades API error",
 }
+
+
+def _dt_to_str(v: Optional[datetime]) -> Optional[str]:
+    """Convert datetime to ISO string for payload."""
+    if v is None:
+        return None
+    return v.isoformat()
 
 
 class TradeFailedNotifier:
@@ -72,14 +80,20 @@ class TradeFailedNotifier:
             payload["position_id"] = str(event.position_id)
         if event.order_id:
             payload["order_id"] = event.order_id
+            payload["close_order_id"] = event.order_id
         if event.error_message:
             payload["error_message"] = event.error_message
         if event.transaction_hash:
             payload["transaction_hash"] = event.transaction_hash
+            payload["close_transaction_hash"] = event.transaction_hash
         if event.amount is not None:
             payload["amount"] = event.amount
         if event.amount_kind:
             payload["amount_kind"] = event.amount_kind
+        if event.close_requested_at is not None:
+            payload["close_requested_at"] = _dt_to_str(event.close_requested_at)
+        if event.close_attempts is not None:
+            payload["close_attempts"] = event.close_attempts
 
         notification = NotificationMessage(
             event_type="trade_failed",

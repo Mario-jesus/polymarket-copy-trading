@@ -20,6 +20,7 @@ class PositionStatus(str, Enum):
     """Position lifecycle state."""
 
     OPEN = "OPEN"
+    CLOSING_PENDING = "CLOSING_PENDING"
     CLOSED = "CLOSED"
 
 
@@ -56,6 +57,14 @@ class BotPosition:
     """USDC received when closed (after fees). Set when status is CLOSED."""
     fees: Decimal = Decimal("0")
     """Total fees in USDC (open + close). For reporting and net PnL."""
+    close_order_id: Optional[str] = None
+    """Last close order id sent to CLOB (if any)."""
+    close_transaction_hash: Optional[str] = None
+    """Last close transaction hash observed/sent (if any)."""
+    close_requested_at: Optional[datetime] = None
+    """Timestamp when close request was last sent."""
+    close_attempts: int = 0
+    """Number of close requests sent for this position."""
 
     def with_close_proceeds_updated(
         self,
@@ -81,6 +90,37 @@ class BotPosition:
             entry_cost_usdc=self.entry_cost_usdc,
             close_proceeds_usdc=close_proceeds_usdc,
             fees=new_fees,
+            close_order_id=self.close_order_id,
+            close_transaction_hash=self.close_transaction_hash,
+            close_requested_at=self.close_requested_at,
+            close_attempts=self.close_attempts,
+        )
+
+    def with_closing_pending(
+        self,
+        *,
+        close_order_id: Optional[str] = None,
+        close_transaction_hash: Optional[str] = None,
+        close_requested_at: Optional[datetime] = None,
+    ) -> BotPosition:
+        """Return a copy with status CLOSING_PENDING and close tracking metadata."""
+        return BotPosition(
+            id=self.id,
+            ledger_id=self.ledger_id,
+            tracked_wallet=self.tracked_wallet,
+            asset=self.asset,
+            shares_held=self.shares_held,
+            entry_price=self.entry_price,
+            status=PositionStatus.CLOSING_PENDING,
+            opened_at=self.opened_at,
+            closed_at=None,
+            entry_cost_usdc=self.entry_cost_usdc,
+            close_proceeds_usdc=self.close_proceeds_usdc,
+            fees=self.fees,
+            close_order_id=close_order_id or self.close_order_id,
+            close_transaction_hash=close_transaction_hash or self.close_transaction_hash,
+            close_requested_at=close_requested_at or datetime.now(timezone.utc),
+            close_attempts=self.close_attempts + 1,
         )
 
     def with_closed(
@@ -88,6 +128,8 @@ class BotPosition:
         closed_at: Optional[datetime] = None,
         close_proceeds_usdc: Optional[Decimal] = None,
         close_fees: Optional[Decimal] = None,
+        close_order_id: Optional[str] = None,
+        close_transaction_hash: Optional[str] = None,
     ) -> BotPosition:
         """Return a copy with status CLOSED, closed_at set, and optional close amounts."""
         now = closed_at or datetime.now(timezone.utc)
@@ -105,11 +147,19 @@ class BotPosition:
             entry_cost_usdc=self.entry_cost_usdc,
             close_proceeds_usdc=close_proceeds_usdc if close_proceeds_usdc is not None else self.close_proceeds_usdc,
             fees=new_fees,
+            close_order_id=close_order_id or self.close_order_id,
+            close_transaction_hash=close_transaction_hash or self.close_transaction_hash,
+            close_requested_at=self.close_requested_at,
+            close_attempts=self.close_attempts,
         )
 
     @property
     def is_open(self) -> bool:
         return self.status == PositionStatus.OPEN
+
+    @property
+    def is_closing_pending(self) -> bool:
+        return self.status == PositionStatus.CLOSING_PENDING
 
     def realized_pnl_usdc(self) -> Optional[Decimal]:
         """Realized PnL in USDC when closed. None if OPEN or missing cost/proceeds."""
@@ -161,4 +211,8 @@ class BotPosition:
             entry_cost_usdc=entry_cost_usdc,
             close_proceeds_usdc=None,
             fees=fees if fees is not None else Decimal("0"),
+            close_order_id=None,
+            close_transaction_hash=None,
+            close_requested_at=None,
+            close_attempts=0,
         )
