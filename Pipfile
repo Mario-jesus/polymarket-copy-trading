@@ -20,6 +20,14 @@ python-telegram-bot = "*"
 bubus = "*"
 
 [dev-packages]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-mock = "*"
+pytest-cov = "*"
+coverage = "*"
+pre-commit = "*"
+ruff = "*"
+mypy = "*"
 
 [requires]
 python_version = "3.13"
